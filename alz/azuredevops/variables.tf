@@ -511,6 +511,7 @@ variable "resource_names" {
     version_control_system_group                               = optional(string, "{{service_name}}-{{environment_name}}-approvers")
     version_control_system_pipeline_name_ci                    = optional(string, "01 Azure Landing Zones Continuous Integration")
     version_control_system_pipeline_name_cd                    = optional(string, "02 Azure Landing Zones Continuous Delivery")
+    version_control_system_pipeline_name_renovate              = optional(string, "03 Renovate Dependency Updates")
     virtual_network                                            = optional(string, "vnet-{{service_name}}-{{environment_name}}-{{azure_location}}-{{postfix_number}}")
     public_ip                                                  = optional(string, "pip-{{service_name}}-{{environment_name}}-{{azure_location}}-{{postfix_number}}")
     nat_gateway                                                = optional(string, "nat-{{service_name}}-{{environment_name}}-{{azure_location}}-{{postfix_number}}")
@@ -1141,4 +1142,26 @@ variable "bicep_tenant_role_assignment_role_definition_name" {
   EOT
   type        = string
   default     = "Landing Zone Management Owner"
+}
+
+variable "enable_renovate" {
+  description = <<-EOT
+    **(Optional, default: `false`)** Whether to add Renovate configuration and pipeline to the repository.
+
+    When enabled, creates:
+    - `renovate.json` - Renovate configuration file in the repository root
+    - `.pipelines/renovate.yaml` - Pipeline YAML file
+    - Azure DevOps pipeline definition (named "03 Renovate Dependency Updates")
+
+    **Important**: After deployment, you must add a pipeline variable named `RENOVATE_TOKEN`
+    containing a Personal Access Token (PAT) with 'Code (Read & Write)' permissions.
+    This allows Renovate to create pull requests for dependency updates.
+
+    Renovate configuration includes:
+    - Terraform provider and module updates
+    - Recommended base configuration
+    - Weekly scheduled runs (Sundays at 3 AM UTC)
+  EOT
+  type        = bool
+  default     = false
 }

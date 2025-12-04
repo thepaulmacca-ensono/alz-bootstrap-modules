@@ -252,3 +252,38 @@ variable "concurrency_value" {
   type        = string
   default     = null
 }
+
+variable "enable_renovate" {
+  description = <<-EOT
+    **(Optional, default: `false`)** Whether to add Renovate configuration and pipeline files to the repository.
+
+    When enabled, adds:
+    - `renovate.json` - Renovate configuration file in the repository root
+    - Pipeline YAML file in the pipeline target folder (e.g., `.pipelines/renovate.yaml`)
+
+    The pipeline runs on a weekly schedule (Sundays at 3 AM UTC) and requires a
+    `RENOVATE_TOKEN` pipeline variable containing a PAT with 'Code (Read & Write)' permissions.
+
+    Renovate configuration includes:
+    - Terraform provider and module updates
+    - Recommended base configuration
+  EOT
+  type        = bool
+  default     = false
+}
+
+variable "enable_dependabot" {
+  description = <<-EOT
+    **(Optional, default: `false`)** Whether to add a Dependabot configuration file to the repository.
+
+    When enabled, adds a `.github/dependabot.yml` file for automated dependency updates.
+    This is used with GitHub repositories.
+
+    Dependabot configuration includes:
+    - Terraform provider and module updates
+    - Weekly update schedule
+    - Automatic pull request creation
+  EOT
+  type        = bool
+  default     = false
+}

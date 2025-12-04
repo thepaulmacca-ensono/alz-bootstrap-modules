@@ -1195,3 +1195,19 @@ variable "bicep_tenant_role_assignment_role_definition_name" {
   type        = string
   default     = "Landing Zone Management Owner"
 }
+
+variable "enable_dependabot" {
+  description = <<-EOT
+    **(Optional, default: `false`)** Whether to add a Dependabot configuration file to the repository.
+
+    When enabled, adds a `.github/dependabot.yml` file for automated dependency updates.
+    GitHub will automatically create pull requests to update dependencies based on the schedule.
+
+    Dependabot configuration includes:
+    - Terraform provider and module updates
+    - Weekly update schedule
+    - Automatic pull request creation
+  EOT
+  type        = bool
+  default     = false
+}

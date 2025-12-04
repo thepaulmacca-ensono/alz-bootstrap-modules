@@ -122,4 +122,5 @@ module "file_manipulation" {
   agent_pool_or_runner_configuration     = local.agent_pool_or_runner_configuration
   pipeline_files_directory_path          = local.pipeline_files_directory_path
   pipeline_template_files_directory_path = local.pipeline_template_files_directory_path
+  enable_renovate                        = var.enable_renovate
 }

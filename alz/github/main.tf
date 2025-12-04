@@ -124,4 +124,5 @@ module "file_manipulation" {
   pipeline_files_directory_path          = local.pipeline_files_directory_path
   pipeline_template_files_directory_path = local.pipeline_template_files_directory_path
   concurrency_value                      = local.resource_names.storage_container
+  enable_dependabot                      = var.enable_dependabot
 }
