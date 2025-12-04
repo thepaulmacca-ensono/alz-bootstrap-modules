@@ -40,6 +40,7 @@ module "azure" {
   storage_account_blob_versioning_enabled              = var.storage_account_blob_versioning_enabled
   storage_account_container_soft_delete_enabled        = var.storage_account_container_soft_delete_enabled
   storage_account_container_soft_delete_retention_days = var.storage_account_container_soft_delete_retention_days
+  storage_account_container_role_assignments           = var.storage_account_container_role_assignments
   tenant_role_assignment_enabled                       = var.iac_type == "bicep" && var.bicep_tenant_role_assignment_enabled
   tenant_role_assignment_role_definition_name          = var.bicep_tenant_role_assignment_role_definition_name
 }
