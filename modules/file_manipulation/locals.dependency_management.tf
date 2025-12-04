@@ -1,20 +1,22 @@
 locals {
   # Renovate configuration for Azure DevOps
   # https://docs.renovatebot.com/configuration-options/
-  renovate_config = {
-    "$schema"         = "https://docs.renovatebot.com/renovate-schema.json"
-    extends           = ["config:recommended"]
-    labels            = ["dependencies"]
-    platformAutomerge = false
-    packageRules = [
-      {
-        matchManagers    = ["terraform"]
-        matchUpdateTypes = ["minor", "patch"]
-        automerge        = false
-        groupName        = "terraform minor/patch updates"
-      }
-    ]
-  }
+  renovate_config_json = <<-JSON
+    {
+      "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+      "extends": ["config:recommended"],
+      "labels": ["dependencies"],
+      "platformAutomerge": false,
+      "packageRules": [
+        {
+          "matchManagers": ["terraform"],
+          "matchUpdateTypes": ["minor", "patch"],
+          "automerge": false,
+          "groupName": "terraform minor/patch updates"
+        }
+      ]
+    }
+  JSON
 
   # Renovate pipeline YAML for Azure DevOps
   # Requires RENOVATE_TOKEN variable to be set in the pipeline (PAT with Code Read & Write permissions)
@@ -51,7 +53,7 @@ locals {
 
   renovate_files = var.enable_renovate && local.is_azuredevops ? {
     "renovate.json" = {
-      content = jsonencode(local.renovate_config)
+      content = local.renovate_config_json
     }
     "${var.pipeline_target_folder_name}/renovate.yaml" = {
       content = local.renovate_pipeline_yaml
