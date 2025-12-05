@@ -47,7 +47,7 @@ locals {
           RENOVATE_PLATFORM: azure
           RENOVATE_ENDPOINT: $(System.CollectionUri)
           RENOVATE_TOKEN: $(RENOVATE_TOKEN)
-          RENOVATE_REPOSITORIES: $(Build.Repository.Name)
+          RENOVATE_REPOSITORIES: $(System.TeamProject)/$(Build.Repository.Name)
           LOG_LEVEL: info
   YAML
 
