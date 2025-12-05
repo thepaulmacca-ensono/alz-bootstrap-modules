@@ -12,7 +12,7 @@ locals {
           "matchManagers": ["terraform"],
           "matchUpdateTypes": ["minor", "patch"],
           "automerge": false,
-          "groupName": "terraform minor/patch updates"
+          "groupName": "terraform minor and patch updates"
         }
       ]
     }
