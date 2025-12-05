@@ -7,6 +7,7 @@ resource "azurerm_storage_account" "alz" {
   account_replication_type        = var.storage_account_replication_type
   allow_nested_items_to_be_public = false
   shared_access_key_enabled       = false
+  default_to_oauth_authentication = true
   public_network_access_enabled   = var.use_private_networking && var.use_self_hosted_agents && !var.allow_storage_access_from_my_ip ? false : true
   blob_properties {
     dynamic "delete_retention_policy" {
