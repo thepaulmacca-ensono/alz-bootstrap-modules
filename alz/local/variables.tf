@@ -856,12 +856,6 @@ variable "storage_account_blob_versioning_enabled" {
   default     = true
 }
 
-variable "storage_account_blob_restore_policy_days" {
-  type        = number
-  description = "The number of days to retain blob versions for point-in-time restore. This setting controls how long blob versions are kept before being automatically deleted. Must be less than or equal to the blob soft delete retention period."
-  default     = 7
-}
-
 variable "bicep_tenant_role_assignment_enabled" {
   type        = bool
   description = "Enable tenant-level role assignment for Bicep deployments. When enabled, assigns the specified role to the managed identity at the tenant root scope, allowing management of resources across the entire Azure AD tenant. Required for tenant-wide policy and management group operations."
