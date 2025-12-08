@@ -5,13 +5,13 @@ locals {
     {
       "$schema": "https://docs.renovatebot.com/renovate-schema.json",
       "extends": ["config:recommended"],
+      "ignoreDeps": ["hashicorp/terraform"],
       "labels": ["dependencies"],
       "platformAutomerge": false,
       "packageRules": [
         {
-          "matchManagers": ["terraform"],
+          "matchManagers": ["terraform", "tflint-plugin"],
           "matchUpdateTypes": ["minor", "patch"],
-          "automerge": false,
           "groupName": "terraform minor and patch updates"
         }
       ]
