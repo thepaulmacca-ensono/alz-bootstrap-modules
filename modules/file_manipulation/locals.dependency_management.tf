@@ -19,7 +19,8 @@ locals {
   JSON
 
   # Renovate pipeline YAML for Azure DevOps
-  # Requires RENOVATE_TOKEN variable to be set in the pipeline (PAT with Code Read & Write permissions)
+  # Requires RENOVATE_TOKEN secret variable to be set in the pipeline (PAT with Code Read & Write permissions)
+  # Also requires a GITHUB_TOKEN secret variable for fetching release notes from GitHub (PAT with Public repositories scope)
   renovate_pipeline_yaml = <<-YAML
     trigger: none
 
@@ -48,6 +49,7 @@ locals {
           RENOVATE_ENDPOINT: $(System.CollectionUri)
           RENOVATE_TOKEN: $(RENOVATE_TOKEN)
           RENOVATE_REPOSITORIES: $(System.TeamProject)/$(Build.Repository.Name)
+          GITHUB_COM_TOKEN: $(GITHUB_TOKEN)
           LOG_LEVEL: info
   YAML
 
