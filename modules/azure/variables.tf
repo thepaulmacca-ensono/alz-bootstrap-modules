@@ -660,22 +660,3 @@ variable "storage_account_blob_versioning_enabled" {
   type        = bool
   default     = true
 }
-
-variable "storage_account_container_role_assignments" {
-  description = <<-EOT
-    **(Optional)** Map of storage container role assignments per managed identity.
-
-    Allows assigning different storage roles to different managed identities.
-    Keys must match keys in `user_assigned_managed_identities`.
-
-    Example:
-    ```
-    {
-      plan  = "Storage Blob Data Reader"
-      apply = "Storage Blob Data Contributor"
-    }
-    ```
-  EOT
-  type        = map(string)
-  default     = {}
-}

@@ -1146,32 +1146,7 @@ variable "storage_account_blob_versioning_enabled" {
   default     = true
 }
 
-variable "storage_account_container_role_assignments" {
-  description = <<-EOT
-    **(Optional)** Map of storage container role assignments per managed identity.
 
-    Allows assigning different storage roles to different managed identities.
-    For example, assign 'Storage Blob Data Reader' to the plan identity and
-    'Storage Blob Data Contributor' to the apply identity.
-
-    Keys must be 'plan' or 'apply' to match the managed identity keys.
-    If not specified, defaults to 'Storage Blob Data Reader' for plan and
-    'Storage Blob Data Contributor' for apply.
-
-    Example:
-    ```
-    {
-      plan  = "Storage Blob Data Reader"
-      apply = "Storage Blob Data Contributor"
-    }
-    ```
-  EOT
-  type        = map(string)
-  default = {
-    plan  = "Storage Blob Data Reader"
-    apply = "Storage Blob Data Contributor"
-  }
-}
 
 variable "bicep_tenant_role_assignment_enabled" {
   description = <<-EOT

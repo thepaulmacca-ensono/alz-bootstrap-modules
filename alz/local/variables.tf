@@ -856,15 +856,6 @@ variable "storage_account_blob_versioning_enabled" {
   default     = true
 }
 
-variable "storage_account_container_role_assignments" {
-  description = "Map of storage container role assignments per managed identity. Allows assigning different storage roles to different managed identities (e.g., 'Storage Blob Data Reader' for plan, 'Storage Blob Data Contributor' for apply). Keys must be 'plan' or 'apply'."
-  type        = map(string)
-  default = {
-    plan  = "Storage Blob Data Reader"
-    apply = "Storage Blob Data Contributor"
-  }
-}
-
 variable "bicep_tenant_role_assignment_enabled" {
   type        = bool
   description = "Enable tenant-level role assignment for Bicep deployments. When enabled, assigns the specified role to the managed identity at the tenant root scope, allowing management of resources across the entire Azure AD tenant. Required for tenant-wide policy and management group operations."
