@@ -18,6 +18,13 @@ resource "azurerm_storage_account" "alz" {
     }
     versioning_enabled = var.storage_account_blob_versioning_enabled
 
+    dynamic "restore_policy" {
+      for_each = var.storage_account_blob_versioning_enabled ? [1] : []
+      content {
+        days = var.storage_account_blob_restore_policy_days
+      }
+    }
+
     dynamic "container_delete_retention_policy" {
       for_each = var.storage_account_container_soft_delete_enabled ? [1] : []
       content {
