@@ -5,6 +5,14 @@ locals {
   # Canonical order for environments - mgmt should always be first for shared resource naming
   canonical_environment_order = ["mgmt", "conn", "id", "sec"]
 
+  # Map short environment keys to long display names for VCS resources
+  environment_long_names = {
+    mgmt = "management"
+    conn = "connectivity"
+    id   = "identity"
+    sec  = "security"
+  }
+
   # Filter canonical order to only include environments that are specified
   effective_environment_names = var.environment_names != null ? [
     for env in local.canonical_environment_order : env if contains(keys(var.environment_names), env)

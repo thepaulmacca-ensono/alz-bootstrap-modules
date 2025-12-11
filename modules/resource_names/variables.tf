@@ -32,6 +32,20 @@ variable "service_name" {
   type        = string
 }
 
+variable "environment_name_long" {
+  description = <<-EOT
+    **(Optional)** Long-form environment name used in VCS resource naming.
+
+    When set, `{{environment_name_long}}` placeholder will be replaced with this value.
+    Useful for Azure DevOps/GitHub resources where full names are preferred.
+    Examples: 'management', 'connectivity', 'identity', 'security'
+
+    Defaults to `environment_name` if not specified.
+  EOT
+  type        = string
+  default     = null
+}
+
 variable "postfix_number" {
   description = <<-EOT
     **(Required)** Numeric postfix appended to resource names for uniqueness and versioning.
