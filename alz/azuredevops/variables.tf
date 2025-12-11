@@ -553,7 +553,7 @@ variable "resource_names" {
     user_assigned_managed_identity_federated_credentials_plan  = optional(string, "id-{{service_name}}-{{environment_name}}-{{azure_location}}-{{postfix_number}}-plan")
     user_assigned_managed_identity_federated_credentials_apply = optional(string, "id-{{service_name}}-{{environment_name}}-{{azure_location}}-{{postfix_number}}-apply")
     storage_account                                            = optional(string, "st{{service_name_short}}{{environment_name_short}}{{azure_location_short}}{{postfix_number}}{{random_string}}")
-    storage_container                                          = optional(string, "{{environment_name}}-tfstate")
+    storage_container                                          = optional(string, "tfstate")
     container_instance_01                                      = optional(string, "aci-{{service_name}}-{{environment_name}}-{{azure_location}}-{{postfix_number}}")
     container_instance_02                                      = optional(string, "aci-{{service_name}}-{{environment_name}}-{{azure_location}}-{{postfix_number_plus_1}}")
     container_instance_managed_identity                        = optional(string, "id-{{service_name}}-{{environment_name}}-{{azure_location}}-{{postfix_number}}-aci")
