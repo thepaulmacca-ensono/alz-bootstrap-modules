@@ -16,17 +16,65 @@ locals {
   default_commit_email = coalesce(local.primary_approver, "demo@microsoft.com")
 }
 
+# Multi-repository mode detection
 locals {
-  repository_name_templates = var.use_template_repository ? var.repository_name_templates : var.repository_name
+  use_multi_repository_mode = var.repositories != null
+
+  # In single-repository mode, create a synthetic repositories map for unified processing
+  effective_repositories = local.use_multi_repository_mode ? var.repositories : {
+    default = {
+      repository_name             = var.repository_name
+      repository_files            = var.repository_files
+      environments                = var.environments
+      workflows                   = var.workflows
+      managed_identity_client_ids = var.managed_identity_client_ids
+      storage_container_name      = var.backend_azure_storage_account_container_name
+    }
+  }
+
+  # Flatten environments across all repositories for resource creation
+  # Keys are formatted as "repo_key-env_key" (e.g., "mgmt-plan", "connectivity-apply")
+  all_environments = merge([
+    for repo_key, repo in local.effective_repositories : {
+      for env_key, env_name in repo.environments :
+      "${repo_key}-${env_key}" => {
+        repo_key         = repo_key
+        env_key          = env_key
+        environment_name = env_name
+        repository_name  = repo.repository_name
+      }
+    }
+  ]...)
+
+  # Flatten repository files across all repositories for resource creation
+  all_repository_files = merge([
+    for repo_key, repo in local.effective_repositories : {
+      for file_path, file in repo.repository_files :
+      "${repo_key}/${file_path}" => {
+        repo_key = repo_key
+        path     = file_path
+        content  = file.content
+      }
+    }
+  ]...)
+}
+
+locals {
+  repository_name_templates = var.use_template_repository ? var.repository_name_templates : (var.repositories != null ? values(var.repositories)[0].repository_name : var.repository_name)
   template_claim_structure  = "${var.organization_name}/${local.repository_name_templates}/%s@refs/heads/main"
 
-  oidc_subjects_flattened = flatten([for key, value in var.workflows : [
-    for environment_user_assigned_managed_identity_mapping in value.environment_user_assigned_managed_identity_mappings :
-    {
-      subject_key                        = "${key}-${environment_user_assigned_managed_identity_mapping.user_assigned_managed_identity_key}"
-      user_assigned_managed_identity_key = environment_user_assigned_managed_identity_mapping.user_assigned_managed_identity_key
-      subject                            = "repo:${var.organization_name}/${var.repository_name}:environment:${var.environments[environment_user_assigned_managed_identity_mapping.environment_key]}:job_workflow_ref:${format(local.template_claim_structure, value.workflow_file_name)}"
-    }
+  # OIDC subjects for all repositories
+  oidc_subjects_flattened = flatten([
+    for repo_key, repo in local.effective_repositories : [
+      for workflow_key, workflow in repo.workflows : [
+        for mapping in workflow.environment_user_assigned_managed_identity_mappings :
+        {
+          subject_key                        = "${repo_key}-${workflow_key}-${mapping.user_assigned_managed_identity_key}"
+          repo_key                           = repo_key
+          user_assigned_managed_identity_key = local.use_multi_repository_mode ? "${repo_key}-${mapping.user_assigned_managed_identity_key}" : mapping.user_assigned_managed_identity_key
+          subject                            = "repo:${var.organization_name}/${repo.repository_name}:environment:${repo.environments[mapping.environment_key]}:job_workflow_ref:${format(local.template_claim_structure, workflow.workflow_file_name)}"
+        }
+      ]
     ]
   ])
 

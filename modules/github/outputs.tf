@@ -1,5 +1,5 @@
 output "subjects" {
-  description = "Map of OIDC subject claims for each workflow and environment combination. These subject claims are used to configure federated credentials in Azure, establishing trust between GitHub Actions and Azure managed identities for keyless authentication."
+  description = "Map of OIDC subject claims for each workflow and environment combination. These subject claims are used to configure federated credentials in Azure, establishing trust between GitHub Actions and Azure managed identities for keyless authentication. In multi-repository mode, keys are formatted as 'repo_key-workflow_key-identity_key'."
   value       = local.oidc_subjects
 }
 
@@ -24,9 +24,12 @@ output "organization_plan" {
 }
 
 output "repository_names" {
-  description = "Names of the created GitHub repositories. Includes the main module repository and the templates repository (if created). Used for reference and validation purposes."
-  value = {
-    module    = github_repository.alz.name
+  description = "Names of the created GitHub repositories. In single-repository mode, returns 'module' and 'templates'. In multi-repository mode, returns a map keyed by repository identifier."
+  value = local.use_multi_repository_mode ? {
+    for repo_key, repo in local.effective_repositories :
+    repo_key => github_repository.alz[repo_key].name
+  } : {
+    module    = github_repository.alz["default"].name
     templates = var.use_template_repository ? github_repository.alz_templates[0].name : ""
   }
 }

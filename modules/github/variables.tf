@@ -23,12 +23,53 @@ variable "organization_name" {
 
 variable "repository_name" {
   description = <<-EOT
-    **(Required)** Name of the GitHub repository to create for Azure Landing Zones deployment code.
+    **(Optional)** Name of the GitHub repository to create for Azure Landing Zones deployment code.
 
     This repository will contain the generated Terraform or Bicep configuration files
     and GitHub Actions workflow definitions.
+
+    **DEPRECATED**: Use `repositories` instead for multi-environment support.
+    This variable is ignored if `repositories` is set.
   EOT
   type        = string
+  default     = null
+}
+
+variable "repositories" {
+  description = <<-EOT
+    **(Optional)** Map of repositories to create for multi-environment deployments.
+
+    Each repository entry includes its own environments, workflows, and managed identity mappings.
+    When set, this takes precedence over `repository_name`.
+
+    Map configuration where:
+    - **Key**: Repository identifier (e.g., environment name like 'mgmt', 'connectivity')
+    - **Value**: Object containing:
+      - `repository_name` (string) - Name of the repository
+      - `repository_files` (map) - Files to create in the repository
+      - `environments` (map) - Environment names for this repository
+      - `workflows` (map) - Workflow configurations for this repository
+      - `managed_identity_client_ids` (map) - Managed identity client IDs
+      - `storage_container_name` (string) - Storage container name for this environment
+  EOT
+  type = map(object({
+    repository_name = string
+    repository_files = map(object({
+      content = string
+    }))
+    environments = map(string)
+    workflows = map(object({
+      workflow_file_name = string
+      environment_user_assigned_managed_identity_mappings = list(object({
+        environment_key                    = string
+        user_assigned_managed_identity_key = string
+      }))
+    }))
+    managed_identity_client_ids = map(string)
+    storage_container_name      = string
+  }))
+  default  = null
+  nullable = true
 }
 
 variable "repository_files" {

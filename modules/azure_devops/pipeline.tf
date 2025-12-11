@@ -9,8 +9,8 @@ resource "azuredevops_build_definition" "alz" {
 
   repository {
     repo_type   = "TfsGit"
-    repo_id     = azuredevops_git_repository.alz.id
-    branch_name = azuredevops_git_repository.alz.default_branch
+    repo_id     = each.value.repository_id
+    branch_name = azuredevops_git_repository.alz[each.value.repo_key].default_branch
     yml_path    = each.value.file
   }
 }

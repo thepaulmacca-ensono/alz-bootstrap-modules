@@ -1,7 +1,20 @@
+# Shared resource names (uses primary environment name)
 module "resource_names" {
   source           = "../../modules/resource_names"
   azure_location   = var.bootstrap_location
-  environment_name = var.environment_name
+  environment_name = local.primary_environment_name
+  service_name     = var.service_name
+  postfix_number   = var.postfix_number
+  resource_names   = merge(var.resource_names, local.custom_role_definitions_bicep_names, local.custom_role_definitions_terraform_names, local.custom_role_definitions_bicep_classic_names)
+}
+
+# Per-environment resource names
+module "resource_names_per_environment" {
+  source   = "../../modules/resource_names"
+  for_each = toset(local.effective_environment_names)
+
+  azure_location   = var.bootstrap_location
+  environment_name = each.key
   service_name     = var.service_name
   postfix_number   = var.postfix_number
   resource_names   = merge(var.resource_names, local.custom_role_definitions_bicep_names, local.custom_role_definitions_terraform_names, local.custom_role_definitions_bicep_classic_names)

@@ -259,17 +259,76 @@ variable "service_name" {
 
 variable "environment_name" {
   description = <<-EOT
-    **(Optional, default: `"mgmt"`)** Used to build up the default resource names.
+    **(Optional, default: `"mgmt"`)** **DEPRECATED** - Use `environment_names` instead.
 
+    Used to build up the default resource names.
     Example: rg-alz-**<environment_name>**-uksouth-001
 
     Must contain only lowercase letters and numbers.
+    This variable is ignored if `environment_names` is set.
   EOT
   type        = string
   default     = "mgmt"
   validation {
     condition     = can(regex("^[a-z0-9]+$", var.environment_name))
     error_message = "The environment name must only contain lowercase letters and numbers"
+  }
+}
+
+variable "environment_names" {
+  description = <<-EOT
+    **(Optional, default: `null`)** Map of environment names for multi-environment deployments.
+
+    When set, this takes precedence over `environment_name` and enables deployment of multiple
+    environments (e.g., mgmt, connectivity, identity, security) in a single Terraform run.
+
+    All environments share common infrastructure:
+    - Templates repository
+    - Storage account
+    - Resource groups (state, identity, agents, network)
+    - Container registry
+    - Container instances (runners)
+    - Virtual network
+    - Runner group
+
+    Each environment gets its own:
+    - Main repository
+    - Managed identities (plan/apply)
+    - Federated credentials
+    - Workflows
+    - Environments
+    - Storage container
+
+    Keys must be one of: 'mgmt', 'conn', 'id', 'sec'
+    Values are objects that can optionally override environment-specific settings.
+
+    Example:
+    ```
+    environment_names = {
+      mgmt = {}
+      conn = {}
+      id   = {}
+    }
+    ```
+  EOT
+  type = map(object({
+    # Future: per-environment overrides can be added here
+  }))
+  default  = null
+  nullable = true
+  validation {
+    condition = var.environment_names == null || alltrue([
+      for name in keys(var.environment_names) :
+      contains(["mgmt", "conn", "id", "sec"], name)
+    ])
+    error_message = "Environment names must be one of: 'mgmt', 'conn', 'id', 'sec'"
+  }
+  validation {
+    condition = var.environment_names == null || alltrue([
+      for name in keys(var.environment_names) :
+      can(regex("^[a-z0-9]+$", name))
+    ])
+    error_message = "Environment names must only contain lowercase letters and numbers"
   }
 }
 

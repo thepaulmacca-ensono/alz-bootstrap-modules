@@ -103,12 +103,56 @@ variable "managed_identity_client_ids" {
 
 variable "repository_name" {
   description = <<-EOT
-    **(Required)** Name of the Azure DevOps repository for Azure Landing Zones deployment code.
+    **(Optional)** Name of the Azure DevOps repository for Azure Landing Zones deployment code.
 
     This repository will contain the generated Terraform or Bicep configuration files
     and pipeline definitions.
+
+    **DEPRECATED**: Use `repositories` instead for multi-environment support.
+    This variable is ignored if `repositories` is set.
   EOT
   type        = string
+  default     = null
+}
+
+variable "repositories" {
+  description = <<-EOT
+    **(Optional)** Map of repositories to create for multi-environment deployments.
+
+    Each repository entry includes its own environments, pipelines, and service connections.
+    When set, this takes precedence over `repository_name`.
+
+    Map configuration where:
+    - **Key**: Repository identifier (e.g., environment name like 'mgmt', 'connectivity')
+    - **Value**: Object containing:
+      - `repository_name` (string) - Name of the repository
+      - `repository_files` (map) - Files to create in the repository
+      - `environments` (map) - Environments configuration for this repository
+      - `pipelines` (map) - Pipelines configuration for this repository
+      - `managed_identity_client_ids` (map) - Managed identity client IDs for service connections
+      - `storage_container_name` (string) - Storage container name for this environment
+  EOT
+  type = map(object({
+    repository_name = string
+    repository_files = map(object({
+      content = string
+    }))
+    environments = map(object({
+      environment_name                      = string
+      service_connection_name               = string
+      service_connection_required_templates = list(string)
+    }))
+    pipelines = map(object({
+      pipeline_name           = string
+      pipeline_file_name      = string
+      environment_keys        = list(string)
+      service_connection_keys = list(string)
+    }))
+    managed_identity_client_ids = map(string)
+    storage_container_name      = string
+  }))
+  default  = null
+  nullable = true
 }
 
 variable "repository_files" {

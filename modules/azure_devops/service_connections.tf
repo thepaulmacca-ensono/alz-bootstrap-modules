@@ -1,12 +1,12 @@
 resource "azuredevops_serviceendpoint_azurerm" "alz" {
-  for_each                               = var.environments
+  for_each                               = local.all_environments
   project_id                             = local.project_id
   service_endpoint_name                  = each.value.service_connection_name
   description                            = "Managed by Terraform"
   service_endpoint_authentication_scheme = local.authentication_scheme_workload_identity_federation
 
   credentials {
-    serviceprincipalid = var.managed_identity_client_ids[each.key]
+    serviceprincipalid = each.value.managed_identity_client_id
   }
 
   azurerm_spn_tenantid      = var.azure_tenant_id
@@ -15,9 +15,9 @@ resource "azuredevops_serviceendpoint_azurerm" "alz" {
 }
 
 resource "azuredevops_check_approval" "alz" {
-  count                = length(var.approvers) == 0 ? 0 : 1
+  for_each             = length(var.approvers) == 0 ? {} : local.apply_environments
   project_id           = local.project_id
-  target_resource_id   = azuredevops_serviceendpoint_azurerm.alz[local.apply_key].id
+  target_resource_id   = azuredevops_serviceendpoint_azurerm.alz[each.key].id
   target_resource_type = "endpoint"
 
   requester_can_approve = length(var.approvers) == 1
@@ -29,7 +29,7 @@ resource "azuredevops_check_approval" "alz" {
 }
 
 resource "azuredevops_check_exclusive_lock" "alz" {
-  for_each             = var.environments
+  for_each             = local.all_environments
   project_id           = local.project_id
   target_resource_id   = azuredevops_serviceendpoint_azurerm.alz[each.key].id
   target_resource_type = "endpoint"
@@ -37,7 +37,7 @@ resource "azuredevops_check_exclusive_lock" "alz" {
 }
 
 resource "azuredevops_check_required_template" "alz" {
-  for_each             = var.environments
+  for_each             = local.all_environments
   project_id           = local.project_id
   target_resource_id   = azuredevops_serviceendpoint_azurerm.alz[each.key].id
   target_resource_type = "endpoint"

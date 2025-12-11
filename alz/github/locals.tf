@@ -1,6 +1,21 @@
+# Environment Names Setup
+# Compute effective environment names - use environment_names if set, otherwise fallback to single environment_name
+locals {
+  effective_environment_names = var.environment_names != null ? keys(var.environment_names) : [var.environment_name]
+
+  # Primary environment is the first one (used for shared resources naming)
+  primary_environment_name = local.effective_environment_names[0]
+}
+
 # Resource Name Setup
 locals {
   resource_names = module.resource_names.resource_names
+
+  # Per-environment resource names
+  resource_names_per_environment = {
+    for env_name in local.effective_environment_names :
+    env_name => module.resource_names_per_environment[env_name].resource_names
+  }
 }
 
 locals {
@@ -45,27 +60,105 @@ locals {
   target_subscriptions        = length(var.subscription_ids) > 0 ? distinct(values(var.subscription_ids)) : local.target_subscriptions_legacy
 }
 
+# Per-environment GitHub environments configuration
 locals {
-  environments = {
-    (local.plan_key)  = local.resource_names.version_control_system_environment_plan
-    (local.apply_key) = local.resource_names.version_control_system_environment_apply
+  environments_per_environment = {
+    for env_name in local.effective_environment_names : env_name => {
+      (local.plan_key)  = local.resource_names_per_environment[env_name].version_control_system_environment_plan
+      (local.apply_key) = local.resource_names_per_environment[env_name].version_control_system_environment_apply
+    }
+  }
+
+  # Legacy single-environment format (for backwards compatibility during transition)
+  environments = local.environments_per_environment[local.primary_environment_name]
+
+  # Per-environment workflows configuration
+  workflows_per_environment = {
+    for env_name in local.effective_environment_names : env_name => {
+      ci = {
+        workflow_file_name = "${local.target_folder_name}/${local.ci_template_file_name}"
+        environment_user_assigned_managed_identity_mappings = [
+          {
+            environment_key                    = local.plan_key
+            user_assigned_managed_identity_key = local.plan_key
+          }
+        ]
+      }
+      cd = {
+        workflow_file_name = "${local.target_folder_name}/${local.cd_template_file_name}"
+        environment_user_assigned_managed_identity_mappings = [
+          {
+            environment_key                    = local.plan_key
+            user_assigned_managed_identity_key = local.plan_key
+          },
+          {
+            environment_key                    = local.apply_key
+            user_assigned_managed_identity_key = local.apply_key
+          }
+        ]
+      }
+    }
+  }
+
+  # Per-environment managed identity client IDs map (keyed by plan/apply)
+  managed_identity_client_ids_per_environment = {
+    for env_name in local.effective_environment_names : env_name => {
+      (local.plan_key)  = module.azure.user_assigned_managed_identity_client_ids[length(local.effective_environment_names) == 1 ? local.plan_key : "${env_name}-${local.plan_key}"]
+      (local.apply_key) = module.azure.user_assigned_managed_identity_client_ids[length(local.effective_environment_names) == 1 ? local.apply_key : "${env_name}-${local.apply_key}"]
+    }
+  }
+
+  # Multi-environment repositories map for github module
+  # Used when environment_names contains more than one environment
+  repositories = length(local.effective_environment_names) == 1 ? null : {
+    for env_name in local.effective_environment_names : env_name => {
+      repository_name             = local.resource_names_per_environment[env_name].version_control_system_repository
+      repository_files            = module.file_manipulation.repository_files # TODO: Per-environment files
+      environments                = local.environments_per_environment[env_name]
+      workflows                   = local.workflows_per_environment[env_name]
+      managed_identity_client_ids = local.managed_identity_client_ids_per_environment[env_name]
+      storage_container_name      = local.resource_names_per_environment[env_name].storage_container
+    }
   }
 }
 
+# Managed identities - currently single environment, prepared for multi-environment expansion
+# When multi-environment is enabled, keys will be like "mgmt-plan", "connectivity-plan", etc.
 locals {
-  managed_identities = {
-    (local.plan_key)  = local.resource_names.user_assigned_managed_identity_plan
-    (local.apply_key) = local.resource_names.user_assigned_managed_identity_apply
-  }
+  managed_identities = length(local.effective_environment_names) == 1 ? {
+    # Single environment - use simple keys for backwards compatibility
+    (local.plan_key)  = local.resource_names_per_environment[local.primary_environment_name].user_assigned_managed_identity_plan
+    (local.apply_key) = local.resource_names_per_environment[local.primary_environment_name].user_assigned_managed_identity_apply
+    } : merge([
+      # Multi-environment - use prefixed keys
+      for env_name in local.effective_environment_names : {
+        "${env_name}-${local.plan_key}"  = local.resource_names_per_environment[env_name].user_assigned_managed_identity_plan
+        "${env_name}-${local.apply_key}" = local.resource_names_per_environment[env_name].user_assigned_managed_identity_apply
+      }
+  ]...)
 
-  federated_credentials = { for key, value in module.github.subjects :
+  # Federated credentials - maps managed identity keys to their OIDC subjects/issuers
+  federated_credentials = length(local.effective_environment_names) == 1 ? {
+    # Single environment - use existing module.github output structure
+    for key, value in module.github.subjects :
     key => {
       user_assigned_managed_identity_key = value.user_assigned_managed_identity_key
       federated_credential_subject       = value.subject
       federated_credential_issuer        = module.github.issuer
-      federated_credential_name          = "${local.resource_names.user_assigned_managed_identity_federated_credentials_prefix}-${key}"
+      federated_credential_name          = "${local.resource_names_per_environment[local.primary_environment_name].user_assigned_managed_identity_federated_credentials_prefix}-${key}"
     }
-  }
+  } : merge([
+    # Multi-environment - use prefixed keys matching the github module output
+    for key, value in module.github.subjects : {
+      (key) = {
+        user_assigned_managed_identity_key = value.user_assigned_managed_identity_key
+        federated_credential_subject       = value.subject
+        federated_credential_issuer        = module.github.issuer
+        # Extract env_name from the subject key (format: "env_name-workflow_key-identity_key")
+        federated_credential_name          = "${local.resource_names_per_environment[split("-", key)[0]].user_assigned_managed_identity_federated_credentials_prefix}-${key}"
+      }
+    }
+  ]...)
 
   runner_container_instances = var.use_self_hosted_runners ? {
     agent_01 = {

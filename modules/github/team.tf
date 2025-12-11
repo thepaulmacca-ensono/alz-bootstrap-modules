@@ -52,7 +52,8 @@ resource "github_team_membership" "alz" {
 }
 
 resource "github_team_repository" "alz" {
+  for_each   = local.effective_repositories
   team_id    = local.team_id
-  repository = github_repository.alz.name
+  repository = github_repository.alz[each.key].name
   permission = "push"
 }

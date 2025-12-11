@@ -4,13 +4,13 @@ output "organization_url" {
 }
 
 output "subjects" {
-  description = "Map of environment keys to their OIDC workload identity federation subject claims. Used for configuring federated credentials in Azure for keyless authentication from Azure DevOps."
-  value       = { for key, value in var.environments : key => azuredevops_serviceendpoint_azurerm.alz[key].workload_identity_federation_subject }
+  description = "Map of environment keys to their OIDC workload identity federation subject claims. Used for configuring federated credentials in Azure for keyless authentication from Azure DevOps. In multi-repository mode, keys are formatted as 'repo_key-env_key' (e.g., 'mgmt-plan')."
+  value       = { for key, value in local.all_environments : key => azuredevops_serviceendpoint_azurerm.alz[key].workload_identity_federation_subject }
 }
 
 output "issuers" {
-  description = "Map of environment keys to their OIDC workload identity federation issuer URLs. Used for configuring federated credentials in Azure to establish trust with Azure DevOps."
-  value       = { for key, value in var.environments : key => azuredevops_serviceendpoint_azurerm.alz[key].workload_identity_federation_issuer }
+  description = "Map of environment keys to their OIDC workload identity federation issuer URLs. Used for configuring federated credentials in Azure to establish trust with Azure DevOps. In multi-repository mode, keys are formatted as 'repo_key-env_key' (e.g., 'mgmt-plan')."
+  value       = { for key, value in local.all_environments : key => azuredevops_serviceendpoint_azurerm.alz[key].workload_identity_federation_issuer }
 }
 
 output "agent_pool_name" {

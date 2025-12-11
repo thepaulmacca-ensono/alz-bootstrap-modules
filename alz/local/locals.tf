@@ -1,6 +1,21 @@
+# Environment Names Setup
+# Compute effective environment names - use environment_names if set, otherwise fallback to single environment_name
+locals {
+  effective_environment_names = var.environment_names != null ? keys(var.environment_names) : [var.environment_name]
+
+  # Primary environment is the first one (used for shared resources naming)
+  primary_environment_name = local.effective_environment_names[0]
+}
+
 # Resource Name Setup
 locals {
   resource_names = module.resource_names.resource_names
+
+  # Per-environment resource names
+  resource_names_per_environment = {
+    for env_name in local.effective_environment_names :
+    env_name => module.resource_names_per_environment[env_name].resource_names
+  }
 }
 
 locals {
@@ -21,11 +36,19 @@ locals {
   target_subscriptions        = length(var.subscription_ids) > 0 ? distinct(values(var.subscription_ids)) : local.target_subscriptions_legacy
 }
 
+# Managed identities - currently single environment, prepared for multi-environment expansion
 locals {
-  managed_identities = {
-    (local.plan_key)  = local.resource_names.user_assigned_managed_identity_plan
-    (local.apply_key) = local.resource_names.user_assigned_managed_identity_apply
-  }
+  managed_identities = length(local.effective_environment_names) == 1 ? {
+    # Single environment - use simple keys for backwards compatibility
+    (local.plan_key)  = local.resource_names_per_environment[local.primary_environment_name].user_assigned_managed_identity_plan
+    (local.apply_key) = local.resource_names_per_environment[local.primary_environment_name].user_assigned_managed_identity_apply
+    } : merge([
+      # Multi-environment - use prefixed keys
+      for env_name in local.effective_environment_names : {
+        "${env_name}-${local.plan_key}"  = local.resource_names_per_environment[env_name].user_assigned_managed_identity_plan
+        "${env_name}-${local.apply_key}" = local.resource_names_per_environment[env_name].user_assigned_managed_identity_apply
+      }
+  ]...)
 
   federated_credentials = var.federated_credentials
 }

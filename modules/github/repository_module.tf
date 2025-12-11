@@ -1,6 +1,7 @@
 resource "github_repository" "alz" {
-  name                 = var.repository_name
-  description          = var.repository_name
+  for_each             = local.effective_repositories
+  name                 = each.value.repository_name
+  description          = each.value.repository_name
   auto_init            = true
   visibility           = data.github_organization.alz.plan == local.free_plan ? "public" : "private"
   allow_update_branch  = true
@@ -10,20 +11,20 @@ resource "github_repository" "alz" {
 }
 
 resource "github_repository_file" "alz" {
-  for_each            = var.repository_files
-  repository          = github_repository.alz.name
-  file                = each.key
+  for_each            = local.all_repository_files
+  repository          = github_repository.alz[each.value.repo_key].name
+  file                = each.value.path
   content             = each.value.content
   commit_author       = local.default_commit_email
   commit_email        = local.default_commit_email
-  commit_message      = "Add ${each.key} [skip ci]"
+  commit_message      = "Add ${each.value.path} [skip ci]"
   overwrite_on_create = true
 }
 
 resource "github_branch_protection" "alz" {
-  count                           = var.create_branch_policies ? 1 : 0
+  for_each                        = var.create_branch_policies ? local.effective_repositories : {}
   depends_on                      = [github_repository_file.alz]
-  repository_id                   = github_repository.alz.name
+  repository_id                   = github_repository.alz[each.key].name
   pattern                         = "main"
   enforce_admins                  = true
   required_linear_history         = true

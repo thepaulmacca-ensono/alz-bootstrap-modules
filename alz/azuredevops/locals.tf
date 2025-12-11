@@ -1,6 +1,21 @@
+# Environment Names Setup
+# Compute effective environment names - use environment_names if set, otherwise fallback to single environment_name
+locals {
+  effective_environment_names = var.environment_names != null ? keys(var.environment_names) : [var.environment_name]
+
+  # Primary environment is the first one (used for shared resources naming)
+  primary_environment_name = local.effective_environment_names[0]
+}
+
 # Resource Name Setup
 locals {
   resource_names = module.resource_names.resource_names
+
+  # Per-environment resource names
+  resource_names_per_environment = {
+    for env_name in local.effective_environment_names :
+    env_name => module.resource_names_per_environment[env_name].resource_names
+  }
 }
 
 locals {
@@ -38,26 +53,53 @@ locals {
   target_subscriptions        = length(var.subscription_ids) > 0 ? distinct(values(var.subscription_ids)) : local.target_subscriptions_legacy
 }
 
+# Managed identities - currently single environment, prepared for multi-environment expansion
+# When multi-environment is enabled, keys will be like "mgmt-plan", "connectivity-plan", etc.
 locals {
-  managed_identities = {
-    (local.plan_key)  = local.resource_names.user_assigned_managed_identity_plan
-    (local.apply_key) = local.resource_names.user_assigned_managed_identity_apply
-  }
+  managed_identities = length(local.effective_environment_names) == 1 ? {
+    # Single environment - use simple keys for backwards compatibility
+    (local.plan_key)  = local.resource_names_per_environment[local.primary_environment_name].user_assigned_managed_identity_plan
+    (local.apply_key) = local.resource_names_per_environment[local.primary_environment_name].user_assigned_managed_identity_apply
+    } : merge([
+      # Multi-environment - use prefixed keys
+      for env_name in local.effective_environment_names : {
+        "${env_name}-${local.plan_key}"  = local.resource_names_per_environment[env_name].user_assigned_managed_identity_plan
+        "${env_name}-${local.apply_key}" = local.resource_names_per_environment[env_name].user_assigned_managed_identity_apply
+      }
+  ]...)
 
-  federated_credentials = {
+  # Federated credentials - maps managed identity keys to their OIDC subjects/issuers
+  federated_credentials = length(local.effective_environment_names) == 1 ? {
+    # Single environment - use simple keys for backwards compatibility
     (local.plan_key) = {
       user_assigned_managed_identity_key = local.plan_key
       federated_credential_subject       = module.azure_devops.subjects[local.plan_key]
       federated_credential_issuer        = module.azure_devops.issuers[local.plan_key]
-      federated_credential_name          = local.resource_names.user_assigned_managed_identity_federated_credentials_plan
+      federated_credential_name          = local.resource_names_per_environment[local.primary_environment_name].user_assigned_managed_identity_federated_credentials_plan
     }
     (local.apply_key) = {
       user_assigned_managed_identity_key = local.apply_key
       federated_credential_subject       = module.azure_devops.subjects[local.apply_key]
       federated_credential_issuer        = module.azure_devops.issuers[local.apply_key]
-      federated_credential_name          = local.resource_names.user_assigned_managed_identity_federated_credentials_apply
+      federated_credential_name          = local.resource_names_per_environment[local.primary_environment_name].user_assigned_managed_identity_federated_credentials_apply
     }
-  }
+  } : merge([
+    # Multi-environment - use prefixed keys matching the azure_devops module output
+    for env_name in local.effective_environment_names : {
+      "${env_name}-${local.plan_key}" = {
+        user_assigned_managed_identity_key = "${env_name}-${local.plan_key}"
+        federated_credential_subject       = module.azure_devops.subjects["${env_name}-${local.plan_key}"]
+        federated_credential_issuer        = module.azure_devops.issuers["${env_name}-${local.plan_key}"]
+        federated_credential_name          = local.resource_names_per_environment[env_name].user_assigned_managed_identity_federated_credentials_plan
+      }
+      "${env_name}-${local.apply_key}" = {
+        user_assigned_managed_identity_key = "${env_name}-${local.apply_key}"
+        federated_credential_subject       = module.azure_devops.subjects["${env_name}-${local.apply_key}"]
+        federated_credential_issuer        = module.azure_devops.issuers["${env_name}-${local.apply_key}"]
+        federated_credential_name          = local.resource_names_per_environment[env_name].user_assigned_managed_identity_federated_credentials_apply
+      }
+    }
+  ]...)
 
   agent_container_instances = var.use_self_hosted_agents ? {
     agent_01 = {
@@ -81,22 +123,87 @@ locals {
   } : {}
 }
 
+# Per-environment Azure DevOps environments configuration
 locals {
-  environments = {
-    (local.plan_key) = {
-      environment_name        = local.resource_names.version_control_system_environment_plan
-      service_connection_name = local.resource_names.version_control_system_service_connection_plan
-      service_connection_required_templates = [
-        "${local.target_folder_name}/${local.ci_template_file_name}",
-        "${local.target_folder_name}/${local.cd_template_file_name}"
-      ]
+  environments_per_environment = {
+    for env_name in local.effective_environment_names : env_name => {
+      (local.plan_key) = {
+        environment_name        = local.resource_names_per_environment[env_name].version_control_system_environment_plan
+        service_connection_name = local.resource_names_per_environment[env_name].version_control_system_service_connection_plan
+        service_connection_required_templates = [
+          "${local.target_folder_name}/${local.ci_template_file_name}",
+          "${local.target_folder_name}/${local.cd_template_file_name}"
+        ]
+      }
+      (local.apply_key) = {
+        environment_name        = local.resource_names_per_environment[env_name].version_control_system_environment_apply
+        service_connection_name = local.resource_names_per_environment[env_name].version_control_system_service_connection_apply
+        service_connection_required_templates = [
+          "${local.target_folder_name}/${local.cd_template_file_name}"
+        ]
+      }
     }
-    (local.apply_key) = {
-      environment_name        = local.resource_names.version_control_system_environment_apply
-      service_connection_name = local.resource_names.version_control_system_service_connection_apply
-      service_connection_required_templates = [
-        "${local.target_folder_name}/${local.cd_template_file_name}"
-      ]
+  }
+
+  # Legacy single-environment format (for backwards compatibility during transition)
+  environments = local.environments_per_environment[local.primary_environment_name]
+
+  # Per-environment pipelines configuration
+  pipelines_per_environment = {
+    for env_name in local.effective_environment_names : env_name => merge(
+      {
+        ci = {
+          pipeline_name      = local.resource_names_per_environment[env_name].version_control_system_pipeline_name_ci
+          pipeline_file_name = "${local.target_folder_name}/${local.ci_file_name}"
+          environment_keys = [
+            local.plan_key
+          ]
+          service_connection_keys = [
+            local.plan_key
+          ]
+        }
+        cd = {
+          pipeline_name      = local.resource_names_per_environment[env_name].version_control_system_pipeline_name_cd
+          pipeline_file_name = "${local.target_folder_name}/${local.cd_file_name}"
+          environment_keys = [
+            local.plan_key,
+            local.apply_key
+          ]
+          service_connection_keys = [
+            local.plan_key,
+            local.apply_key
+          ]
+        }
+      },
+      var.enable_renovate ? {
+        renovate = {
+          pipeline_name           = local.resource_names_per_environment[env_name].version_control_system_pipeline_name_renovate
+          pipeline_file_name      = "${local.target_folder_name}/${local.renovate_file_name}"
+          environment_keys        = []
+          service_connection_keys = []
+        }
+      } : {}
+    )
+  }
+
+  # Per-environment managed identity client IDs map (keyed by plan/apply)
+  managed_identity_client_ids_per_environment = {
+    for env_name in local.effective_environment_names : env_name => {
+      (local.plan_key)  = module.azure.user_assigned_managed_identity_client_ids[length(local.effective_environment_names) == 1 ? local.plan_key : "${env_name}-${local.plan_key}"]
+      (local.apply_key) = module.azure.user_assigned_managed_identity_client_ids[length(local.effective_environment_names) == 1 ? local.apply_key : "${env_name}-${local.apply_key}"]
+    }
+  }
+
+  # Multi-environment repositories map for azure_devops module
+  # Used when environment_names contains more than one environment
+  repositories = length(local.effective_environment_names) == 1 ? null : {
+    for env_name in local.effective_environment_names : env_name => {
+      repository_name             = local.resource_names_per_environment[env_name].version_control_system_repository
+      repository_files            = module.file_manipulation.repository_files # TODO: Per-environment files
+      environments                = local.environments_per_environment[env_name]
+      pipelines                   = local.pipelines_per_environment[env_name]
+      managed_identity_client_ids = local.managed_identity_client_ids_per_environment[env_name]
+      storage_container_name      = local.resource_names_per_environment[env_name].storage_container
     }
   }
 }

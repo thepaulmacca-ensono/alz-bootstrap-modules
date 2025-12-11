@@ -1,7 +1,8 @@
 resource "azuredevops_git_repository" "alz" {
+  for_each       = local.effective_repositories
   depends_on     = [azuredevops_environment.alz]
   project_id     = local.project_id
-  name           = var.repository_name
+  name           = each.value.repository_name
   default_branch = local.default_branch
   initialization {
     init_type = "Clean"
@@ -9,9 +10,9 @@ resource "azuredevops_git_repository" "alz" {
 }
 
 resource "azuredevops_git_repository_file" "alz" {
-  for_each            = var.repository_files
-  repository_id       = azuredevops_git_repository.alz.id
-  file                = each.key
+  for_each            = local.all_repository_files
+  repository_id       = azuredevops_git_repository.alz[each.value.repo_key].id
+  file                = each.value.path
   content             = each.value.content
   branch              = local.default_branch
   commit_message      = "[skip ci]"
@@ -19,6 +20,7 @@ resource "azuredevops_git_repository_file" "alz" {
 }
 
 resource "azuredevops_branch_policy_min_reviewers" "alz" {
+  for_each   = local.effective_repositories
   depends_on = [azuredevops_git_repository_file.alz]
   project_id = local.project_id
 
@@ -33,14 +35,15 @@ resource "azuredevops_branch_policy_min_reviewers" "alz" {
     on_push_reset_approved_votes           = true
 
     scope {
-      repository_id  = azuredevops_git_repository.alz.id
-      repository_ref = azuredevops_git_repository.alz.default_branch
+      repository_id  = azuredevops_git_repository.alz[each.key].id
+      repository_ref = azuredevops_git_repository.alz[each.key].default_branch
       match_type     = "Exact"
     }
   }
 }
 
 resource "azuredevops_branch_policy_merge_types" "alz" {
+  for_each   = local.effective_repositories
   depends_on = [azuredevops_git_repository_file.alz]
   project_id = local.project_id
 
@@ -54,14 +57,15 @@ resource "azuredevops_branch_policy_merge_types" "alz" {
     allow_rebase_with_merge       = false
 
     scope {
-      repository_id  = azuredevops_git_repository.alz.id
-      repository_ref = azuredevops_git_repository.alz.default_branch
+      repository_id  = azuredevops_git_repository.alz[each.key].id
+      repository_ref = azuredevops_git_repository.alz[each.key].default_branch
       match_type     = "Exact"
     }
   }
 }
 
 resource "azuredevops_branch_policy_build_validation" "alz" {
+  for_each   = local.effective_repositories
   depends_on = [azuredevops_git_repository_file.alz]
   project_id = local.project_id
 
@@ -70,12 +74,12 @@ resource "azuredevops_branch_policy_build_validation" "alz" {
 
   settings {
     display_name        = "Terraform Validation"
-    build_definition_id = azuredevops_build_definition.alz["ci"].id
+    build_definition_id = azuredevops_build_definition.alz["${each.key}-ci"].id
     valid_duration      = 720
 
     scope {
-      repository_id  = azuredevops_git_repository.alz.id
-      repository_ref = azuredevops_git_repository.alz.default_branch
+      repository_id  = azuredevops_git_repository.alz[each.key].id
+      repository_ref = azuredevops_git_repository.alz[each.key].default_branch
       match_type     = "Exact"
     }
   }
