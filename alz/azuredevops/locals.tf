@@ -245,3 +245,33 @@ locals {
     }
   }
 }
+
+# Role assignments expansion for multi-environment mode
+# In single-environment mode, identity keys are "plan" and "apply"
+# In multi-environment mode, identity keys are prefixed: "mgmt-plan", "conn-apply", etc.
+# This local expands the base role assignments to cover all environment identities
+locals {
+  role_assignments_terraform_expanded = length(local.effective_environment_names) == 1 ? var.role_assignments_terraform : merge([
+    for env_name in local.effective_environment_names : {
+      for key, value in var.role_assignments_terraform :
+      "${env_name}-${key}" => {
+        custom_role_definition_key         = value.custom_role_definition_key
+        user_assigned_managed_identity_key = "${env_name}-${value.user_assigned_managed_identity_key}"
+        scope                              = value.scope
+      }
+    }
+  ]...)
+
+  role_assignments_bicep_expanded = length(local.effective_environment_names) == 1 ? var.role_assignments_bicep : merge([
+    for env_name in local.effective_environment_names : {
+      for key, value in var.role_assignments_bicep :
+      "${env_name}-${key}" => {
+        custom_role_definition_key         = value.custom_role_definition_key
+        user_assigned_managed_identity_key = "${env_name}-${value.user_assigned_managed_identity_key}"
+        scope                              = value.scope
+      }
+    }
+  ]...)
+
+  role_assignments_effective = var.iac_type == "terraform" ? local.role_assignments_terraform_expanded : local.role_assignments_bicep_expanded
+}
