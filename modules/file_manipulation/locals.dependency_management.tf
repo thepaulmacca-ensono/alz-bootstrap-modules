@@ -3,16 +3,27 @@ locals {
   # https://docs.renovatebot.com/configuration-options/
   renovate_config_json = <<-JSON
     {
+      // See: https://docs.renovatebot.com/configuration-options/
       "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+
+      // Use recommended defaults as base configuration
       "extends": ["config:recommended"],
+
+      // Ignore Terraform version updates - these require manual review
+      // to ensure compatibility with providers and modules
       "ignoreDeps": ["hashicorp/terraform"],
+
+      // Label pull requests for easier filtering
       "labels": ["dependencies"],
-      "platformAutomerge": false,
+
       "packageRules": [
         {
+          // Group minor and patch updates for Terraform providers and modules
+          // to reduce PR noise while maintaining security updates
+          "groupName": "terraform minor and patch updates",
           "matchManagers": ["terraform", "tflint-plugin"],
           "matchUpdateTypes": ["minor", "patch"],
-          "groupName": "terraform minor and patch updates"
+          "autoMerge": true
         }
       ]
     }
@@ -54,7 +65,7 @@ locals {
   YAML
 
   renovate_files = var.enable_renovate && local.is_azuredevops ? {
-    "renovate.json" = {
+    "renovate.json5" = {
       content = local.renovate_config_json
     }
     "${var.pipeline_target_folder_name}/renovate.yaml" = {
