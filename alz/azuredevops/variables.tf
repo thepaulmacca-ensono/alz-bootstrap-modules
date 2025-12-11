@@ -565,7 +565,7 @@ variable "resource_names" {
     version_control_system_service_connection_apply            = optional(string, "sc-{{service_name}}-{{environment_name_long}}-apply")
     version_control_system_environment_plan                    = optional(string, "{{service_name}}-{{environment_name_long}}-plan")
     version_control_system_environment_apply                   = optional(string, "{{service_name}}-{{environment_name_long}}-apply")
-    version_control_system_variable_group                      = optional(string, "{{service_name}}")
+    version_control_system_variable_group                      = optional(string, "{{service_name}}-{{environment_name_long}}")
     version_control_system_agent_pool                          = optional(string, "{{service_name}}")
     version_control_system_group                               = optional(string, "{{service_name}}-{{environment_name_long}}-approvers")
     version_control_system_pipeline_name_ci                    = optional(string, "{{service_name}}-{{environment_name_long}}-ci")
