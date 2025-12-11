@@ -1,9 +1,17 @@
 # Environment Names Setup
 # Compute effective environment names - use environment_names if set, otherwise fallback to single environment_name
+# Note: We use a predefined order to ensure 'mgmt' is always first (for shared resources naming)
 locals {
-  effective_environment_names = var.environment_names != null ? keys(var.environment_names) : [var.environment_name]
+  # Canonical order for environments - mgmt should always be first for shared resource naming
+  canonical_environment_order = ["mgmt", "conn", "id", "sec"]
+
+  # Filter canonical order to only include environments that are specified
+  effective_environment_names = var.environment_names != null ? [
+    for env in local.canonical_environment_order : env if contains(keys(var.environment_names), env)
+  ] : [var.environment_name]
 
   # Primary environment is the first one (used for shared resources naming)
+  # With canonical ordering, this will be 'mgmt' when present
   primary_environment_name = local.effective_environment_names[0]
 }
 

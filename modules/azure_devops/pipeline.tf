@@ -2,6 +2,7 @@ resource "azuredevops_build_definition" "alz" {
   for_each   = local.pipelines
   project_id = local.project_id
   name       = each.value.pipeline_name
+  path       = each.value.pipeline_folder
 
   ci_trigger {
     use_yaml = true

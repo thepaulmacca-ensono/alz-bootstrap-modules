@@ -500,7 +500,7 @@ variable "resource_names" {
     runner_01                                                   = optional(string, "runner-{{service_name}}-{{environment_name}}-{{postfix_number}}")
     runner_02                                                   = optional(string, "runner-{{service_name}}-{{environment_name}}-{{postfix_number_plus_1}}")
     version_control_system_repository                           = optional(string, "{{service_name}}-{{environment_name}}")
-    version_control_system_repository_templates                 = optional(string, "{{service_name}}-{{environment_name}}-templates")
+    version_control_system_repository_templates                 = optional(string, "{{service_name}}-pipeline-templates")
     version_control_system_environment_plan                     = optional(string, "{{service_name}}-{{environment_name}}-plan")
     version_control_system_environment_apply                    = optional(string, "{{service_name}}-{{environment_name}}-apply")
     version_control_system_team                                 = optional(string, "{{service_name}}-{{environment_name}}-approvers")

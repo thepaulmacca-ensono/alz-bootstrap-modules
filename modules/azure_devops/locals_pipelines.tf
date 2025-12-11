@@ -1,4 +1,12 @@
 locals {
+  # Map short environment keys to long display names for pipeline folders
+  environment_long_names = {
+    mgmt = "management"
+    conn = "connectivity"
+    id   = "identity"
+    sec  = "security"
+  }
+
   # Flatten pipelines across all repositories
   # Keys are formatted as "repo_key-pipeline_key" (e.g., "mgmt-ci", "connectivity-cd")
   all_pipelines = merge([
@@ -8,6 +16,8 @@ locals {
         repo_key      = repo_key
         pipeline_key  = pipeline_key
         pipeline_name = pipeline.pipeline_name
+        # In multi-repo mode, organize pipelines into folders by environment (using long names)
+        pipeline_folder = local.use_multi_repository_mode ? "\\${lookup(local.environment_long_names, repo_key, repo_key)}" : null
         # Reference the file in the correct repository
         file = azuredevops_git_repository_file.alz["${repo_key}/${pipeline.pipeline_file_name}"].file
         # Environment keys need to be prefixed with repo_key to match all_environments
