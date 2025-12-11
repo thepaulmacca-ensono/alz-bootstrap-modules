@@ -10,12 +10,21 @@ variable "azure_location" {
 
 variable "user_assigned_managed_identities" {
   description = <<-EOT
-    **(Required)** Map of user-assigned managed identity names to create for Azure Landing Zones automation.
+    **(Required)** Map of user-assigned managed identity configurations for Azure Landing Zones automation.
 
     Typically includes 'plan' and 'apply' identities used for Terraform/Bicep plan and apply operations
     with appropriate RBAC permissions.
+
+    Map structure:
+    - **Key**: Unique identifier (e.g., 'plan', 'apply', 'mgmt-plan', 'mgmt-apply')
+    - **Value**: Object containing:
+      - `name` (string) - Name of the managed identity
+      - `resource_group_key` (string) - Key into resource_group_identity_names map (for multi-env) or null (for single-env)
   EOT
-  type        = map(string)
+  type = map(object({
+    name               = string
+    resource_group_key = optional(string, null)
+  }))
 }
 
 variable "federated_credentials" {
@@ -42,14 +51,14 @@ variable "federated_credentials" {
   default = {}
 }
 
-variable "resource_group_identity_name" {
+variable "resource_group_identity_names" {
   description = <<-EOT
-    **(Required)** Name of the Azure resource group for user-assigned managed identities.
+    **(Required)** Map of Azure resource groups for user-assigned managed identities.
 
-    This resource group contains user-assigned managed identities and their federated credentials
-    used for CI/CD authentication and authorization.
+    Each environment gets its own identity resource group.
+    Keys are environment names (e.g., 'mgmt', 'conn'), values are resource group names.
   EOT
-  type        = string
+  type        = map(string)
 }
 
 variable "resource_group_agents_name" {
@@ -74,43 +83,35 @@ variable "resource_group_network_name" {
   default     = ""
 }
 
-variable "resource_group_state_name" {
-  description = <<-EOT
-    **(Required)** Name of the Azure resource group for Terraform state storage.
-
-    This resource group contains the storage account for Terraform state files.
-    Used to centrally manage state storage infrastructure.
-  EOT
-  type        = string
-}
-
 variable "create_storage_account" {
   description = <<-EOT
-    **(Optional, default: `true`)** Controls whether to create an Azure Storage Account for Terraform state management.
+    **(Optional, default: `true`)** Controls whether to create Azure Storage Accounts for Terraform state management.
 
-    Set to false when using alternative state backends or when storage account already exists.
+    Set to false when using alternative state backends or when storage accounts already exist.
   EOT
   type        = bool
   default     = true
 }
 
-variable "storage_account_name" {
+variable "storage_accounts" {
   description = <<-EOT
-    **(Required)** Name of the Azure Storage Account for storing Terraform state files.
+    **(Required)** Map of storage account configurations for each environment.
 
-    Must be globally unique, 3-24 characters, lowercase letters and numbers only.
+    Each environment gets its own resource group, storage account, and container.
+
+    Map structure:
+    - **Key**: Environment identifier (e.g., 'mgmt', 'conn')
+    - **Value**: Object containing:
+      - `resource_group_name` (string) - Name of the resource group for state storage
+      - `storage_account_name` (string) - Name of the storage account
+      - `container_name` (string) - Name of the blob container
   EOT
-  type        = string
-}
-
-variable "storage_container_name" {
-  description = <<-EOT
-    **(Required)** Name of the blob container for Terraform state files.
-
-    Container within the storage account that will store Terraform state files.
-    Typically named after the environment (e.g., 'mgmt-tfstate', 'prod-tfstate').
-  EOT
-  type        = string
+  type = map(object({
+    resource_group_name  = string
+    storage_account_name = string
+    container_name       = string
+  }))
+  default = {}
 }
 
 variable "storage_account_replication_type" {

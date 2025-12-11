@@ -1,5 +1,5 @@
 resource "azuredevops_git_repository" "alz" {
-  for_each       = local.effective_repositories
+  for_each       = var.repositories
   depends_on     = [azuredevops_environment.alz]
   project_id     = local.project_id
   name           = each.value.repository_name
@@ -20,7 +20,7 @@ resource "azuredevops_git_repository_file" "alz" {
 }
 
 resource "azuredevops_branch_policy_min_reviewers" "alz" {
-  for_each   = local.effective_repositories
+  for_each   = var.repositories
   depends_on = [azuredevops_git_repository_file.alz]
   project_id = local.project_id
 
@@ -43,7 +43,7 @@ resource "azuredevops_branch_policy_min_reviewers" "alz" {
 }
 
 resource "azuredevops_branch_policy_merge_types" "alz" {
-  for_each   = local.effective_repositories
+  for_each   = var.repositories
   depends_on = [azuredevops_git_repository_file.alz]
   project_id = local.project_id
 
@@ -65,7 +65,7 @@ resource "azuredevops_branch_policy_merge_types" "alz" {
 }
 
 resource "azuredevops_branch_policy_build_validation" "alz" {
-  for_each   = local.effective_repositories
+  for_each   = var.repositories
   depends_on = [azuredevops_git_repository_file.alz]
   project_id = local.project_id
 

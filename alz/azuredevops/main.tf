@@ -33,13 +33,11 @@ module "files" {
 
 module "azure" {
   source                                                    = "../../modules/azure"
-  resource_group_identity_name                              = local.resource_names.resource_group_identity
+  resource_group_identity_names                             = local.resource_group_identity_names
   resource_group_agents_name                                = local.resource_names.resource_group_agents
   resource_group_network_name                               = local.resource_names.resource_group_network
-  resource_group_state_name                                 = local.resource_names.resource_group_state
   create_storage_account                                    = var.iac_type == local.iac_terraform
-  storage_account_name                                      = local.resource_names.storage_account
-  storage_container_name                                    = local.resource_names.storage_container
+  storage_accounts                                          = local.storage_accounts
   azure_location                                            = var.bootstrap_location
   user_assigned_managed_identities                          = local.managed_identities
   federated_credentials                                     = local.federated_credentials
@@ -90,27 +88,20 @@ module "azure_devops" {
   organization_name                            = var.azure_devops_organization_name
   create_project                               = var.azure_devops_create_project
   project_name                                 = var.azure_devops_project_name
-  environments                                 = local.environments
-  managed_identity_client_ids                  = module.azure.user_assigned_managed_identity_client_ids
-  repository_name                              = local.resource_names.version_control_system_repository
   repositories                                 = local.repositories
-  repository_files                             = module.file_manipulation.repository_files
   template_repository_files                    = module.file_manipulation.template_repository_files
   use_template_repository                      = var.use_separate_repository_for_templates
   repository_name_templates                    = local.resource_names.version_control_system_repository_templates
-  variable_group_name                          = local.resource_names.version_control_system_variable_group
+  variable_groups                              = local.variable_groups
   azure_tenant_id                              = data.azurerm_client_config.current.tenant_id
   azure_subscription_id                        = var.subscription_ids["management"]
   azure_subscription_name                      = data.azurerm_subscription.management.display_name
-  pipelines                                    = local.pipelines
-  backend_azure_resource_group_name            = local.resource_names.resource_group_state
-  backend_azure_storage_account_name           = local.resource_names.storage_account
-  backend_azure_storage_account_container_name = local.resource_names.storage_container
   approvers                                    = var.apply_approvers
   group_name                                   = local.resource_names.version_control_system_group
   agent_pool_name                              = local.resource_names.version_control_system_agent_pool
   use_self_hosted_agents                       = var.use_self_hosted_agents
   create_branch_policies                       = var.create_branch_policies
+  environment_long_names                       = local.environment_long_names
 }
 
 module "file_manipulation" {

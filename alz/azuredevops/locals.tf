@@ -69,38 +69,51 @@ locals {
   target_subscriptions        = length(var.subscription_ids) > 0 ? distinct(values(var.subscription_ids)) : local.target_subscriptions_legacy
 }
 
-# Managed identities - currently single environment, prepared for multi-environment expansion
-# When multi-environment is enabled, keys will be like "mgmt-plan", "connectivity-plan", etc.
+# Managed identities - keys are prefixed with environment: "mgmt-plan", "conn-apply", etc.
+# Each identity includes name and resource_group_key to support per-environment resource groups
 locals {
-  managed_identities = length(local.effective_environment_names) == 1 ? {
-    # Single environment - use simple keys for backwards compatibility
-    (local.plan_key)  = local.resource_names_per_environment[local.primary_environment_name].user_assigned_managed_identity_plan
-    (local.apply_key) = local.resource_names_per_environment[local.primary_environment_name].user_assigned_managed_identity_apply
-    } : merge([
-      # Multi-environment - use prefixed keys
-      for env_name in local.effective_environment_names : {
-        "${env_name}-${local.plan_key}"  = local.resource_names_per_environment[env_name].user_assigned_managed_identity_plan
-        "${env_name}-${local.apply_key}" = local.resource_names_per_environment[env_name].user_assigned_managed_identity_apply
+  managed_identities = merge([
+    for env_name in local.effective_environment_names : {
+      "${env_name}-${local.plan_key}" = {
+        name               = local.resource_names_per_environment[env_name].user_assigned_managed_identity_plan
+        resource_group_key = env_name
       }
+      "${env_name}-${local.apply_key}" = {
+        name               = local.resource_names_per_environment[env_name].user_assigned_managed_identity_apply
+        resource_group_key = env_name
+      }
+    }
   ]...)
 
+  # Per-environment identity resource groups
+  resource_group_identity_names = {
+    for env_name in local.effective_environment_names :
+    env_name => local.resource_names_per_environment[env_name].resource_group_identity
+  }
+
+  # Per-environment storage accounts
+  storage_accounts = {
+    for env_name in local.effective_environment_names :
+    env_name => {
+      resource_group_name  = local.resource_names_per_environment[env_name].resource_group_state
+      storage_account_name = local.resource_names_per_environment[env_name].storage_account
+      container_name       = local.resource_names_per_environment[env_name].storage_container
+    }
+  }
+
+  # Per-environment variable groups
+  variable_groups = {
+    for env_name in local.effective_environment_names :
+    env_name => {
+      variable_group_name  = local.resource_names_per_environment[env_name].version_control_system_variable_group
+      resource_group_name  = local.resource_names_per_environment[env_name].resource_group_state
+      storage_account_name = local.resource_names_per_environment[env_name].storage_account
+      container_name       = local.resource_names_per_environment[env_name].storage_container
+    }
+  }
+
   # Federated credentials - maps managed identity keys to their OIDC subjects/issuers
-  federated_credentials = length(local.effective_environment_names) == 1 ? {
-    # Single environment - use simple keys for backwards compatibility
-    (local.plan_key) = {
-      user_assigned_managed_identity_key = local.plan_key
-      federated_credential_subject       = module.azure_devops.subjects[local.plan_key]
-      federated_credential_issuer        = module.azure_devops.issuers[local.plan_key]
-      federated_credential_name          = local.resource_names_per_environment[local.primary_environment_name].user_assigned_managed_identity_federated_credentials_plan
-    }
-    (local.apply_key) = {
-      user_assigned_managed_identity_key = local.apply_key
-      federated_credential_subject       = module.azure_devops.subjects[local.apply_key]
-      federated_credential_issuer        = module.azure_devops.issuers[local.apply_key]
-      federated_credential_name          = local.resource_names_per_environment[local.primary_environment_name].user_assigned_managed_identity_federated_credentials_apply
-    }
-  } : merge([
-    # Multi-environment - use prefixed keys matching the azure_devops module output
+  federated_credentials = merge([
     for env_name in local.effective_environment_names : {
       "${env_name}-${local.plan_key}" = {
         user_assigned_managed_identity_key = "${env_name}-${local.plan_key}"
@@ -161,9 +174,6 @@ locals {
     }
   }
 
-  # Legacy single-environment format (for backwards compatibility during transition)
-  environments = local.environments_per_environment[local.primary_environment_name]
-
   # Per-environment pipelines configuration
   pipelines_per_environment = {
     for env_name in local.effective_environment_names : env_name => merge(
@@ -205,14 +215,13 @@ locals {
   # Per-environment managed identity client IDs map (keyed by plan/apply)
   managed_identity_client_ids_per_environment = {
     for env_name in local.effective_environment_names : env_name => {
-      (local.plan_key)  = module.azure.user_assigned_managed_identity_client_ids[length(local.effective_environment_names) == 1 ? local.plan_key : "${env_name}-${local.plan_key}"]
-      (local.apply_key) = module.azure.user_assigned_managed_identity_client_ids[length(local.effective_environment_names) == 1 ? local.apply_key : "${env_name}-${local.apply_key}"]
+      (local.plan_key)  = module.azure.user_assigned_managed_identity_client_ids["${env_name}-${local.plan_key}"]
+      (local.apply_key) = module.azure.user_assigned_managed_identity_client_ids["${env_name}-${local.apply_key}"]
     }
   }
 
   # Multi-environment repositories map for azure_devops module
-  # Used when environment_names contains more than one environment
-  repositories = length(local.effective_environment_names) == 1 ? null : {
+  repositories = {
     for env_name in local.effective_environment_names : env_name => {
       repository_name             = local.resource_names_per_environment[env_name].version_control_system_repository
       repository_files            = module.file_manipulation.repository_files # TODO: Per-environment files
@@ -262,12 +271,10 @@ locals {
   }
 }
 
-# Role assignments expansion for multi-environment mode
-# In single-environment mode, identity keys are "plan" and "apply"
-# In multi-environment mode, identity keys are prefixed: "mgmt-plan", "conn-apply", etc.
+# Role assignments expansion - identity keys are prefixed: "mgmt-plan", "conn-apply", etc.
 # This local expands the base role assignments to cover all environment identities
 locals {
-  role_assignments_terraform_expanded = length(local.effective_environment_names) == 1 ? var.role_assignments_terraform : merge([
+  role_assignments_terraform_expanded = merge([
     for env_name in local.effective_environment_names : {
       for key, value in var.role_assignments_terraform :
       "${env_name}-${key}" => {
@@ -278,7 +285,7 @@ locals {
     }
   ]...)
 
-  role_assignments_bicep_expanded = length(local.effective_environment_names) == 1 ? var.role_assignments_bicep : merge([
+  role_assignments_bicep_expanded = merge([
     for env_name in local.effective_environment_names : {
       for key, value in var.role_assignments_bicep :
       "${env_name}-${key}" => {

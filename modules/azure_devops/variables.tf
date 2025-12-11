@@ -39,88 +39,11 @@ variable "project_name" {
   type        = string
 }
 
-variable "environments" {
-  description = <<-EOT
-    **(Required)** Map of Azure DevOps environments with their associated service connections.
-
-    Each environment (e.g., 'plan', 'apply') includes protection settings and OIDC-based
-    service connection configuration for secure Azure authentication.
-
-    Map configuration where:
-    - **Key**: Environment identifier
-    - **Value**: Object containing:
-      - `environment_name` (string) - Display name for the environment
-      - `service_connection_name` (string) - Name of the Azure service connection
-      - `service_connection_required_templates` (list(string)) - List of required template repositories
-  EOT
-  type = map(object({
-    environment_name                      = string
-    service_connection_name               = string
-    service_connection_required_templates = list(string)
-  }))
-}
-
-variable "pipelines" {
-  description = <<-EOT
-    **(Required)** Map of Azure Pipelines to create for CI/CD workflows.
-
-    Each pipeline definition specifies the YAML file location, required environments
-    for approvals, and service connections for Azure authentication.
-
-    Map configuration where:
-    - **Key**: Pipeline identifier
-    - **Value**: Object containing:
-      - `pipeline_name` (string) - Display name for the pipeline
-      - `pipeline_file_name` (string) - Path to the YAML pipeline file in the repository
-      - `environment_keys` (list(string)) - List of environment keys required for approvals
-      - `service_connection_keys` (list(string)) - List of service connection keys for Azure access
-  EOT
-  type = map(object({
-    pipeline_name           = string
-    pipeline_file_name      = string
-    environment_keys        = list(string)
-    service_connection_keys = list(string)
-  }))
-}
-
-variable "managed_identity_client_ids" {
-  description = <<-EOT
-    **(Required)** Map of user-assigned managed identity keys to their client IDs.
-
-    Used to configure OIDC-based service connections for keyless authentication
-    between Azure DevOps and Azure.
-
-    Example:
-    ```
-    {
-      plan  = "00000000-0000-0000-0000-000000000000"
-      apply = "11111111-1111-1111-1111-111111111111"
-    }
-    ```
-  EOT
-  type        = map(string)
-}
-
-variable "repository_name" {
-  description = <<-EOT
-    **(Optional)** Name of the Azure DevOps repository for Azure Landing Zones deployment code.
-
-    This repository will contain the generated Terraform or Bicep configuration files
-    and pipeline definitions.
-
-    **DEPRECATED**: Use `repositories` instead for multi-environment support.
-    This variable is ignored if `repositories` is set.
-  EOT
-  type        = string
-  default     = null
-}
-
 variable "repositories" {
   description = <<-EOT
-    **(Optional)** Map of repositories to create for multi-environment deployments.
+    **(Required)** Map of repositories to create for multi-environment deployments.
 
     Each repository entry includes its own environments, pipelines, and service connections.
-    When set, this takes precedence over `repository_name`.
 
     Map configuration where:
     - **Key**: Repository identifier (e.g., environment name like 'mgmt', 'connectivity')
@@ -151,25 +74,6 @@ variable "repositories" {
     managed_identity_client_ids = map(string)
     storage_container_name      = string
   }))
-  default  = null
-  nullable = true
-}
-
-variable "repository_files" {
-  description = <<-EOT
-    **(Required)** Map of files to create in the main repository.
-
-    Each entry specifies the file path (key) and content (value).
-    Includes configuration files, IaC code, and pipeline YAML files for the Azure Landing Zones deployment.
-
-    Map configuration where:
-    - **Key**: File path relative to repository root
-    - **Value**: Object containing:
-      - `content` (string) - File contents
-  EOT
-  type = map(object({
-    content = string
-  }))
 }
 
 variable "template_repository_files" {
@@ -189,15 +93,7 @@ variable "template_repository_files" {
   }))
 }
 
-variable "variable_group_name" {
-  description = <<-EOT
-    **(Required)** Name of the Azure Pipelines variable group to create.
 
-    This variable group stores shared configuration values used across pipelines,
-    such as subscription IDs, resource names, and deployment settings.
-  EOT
-  type        = string
-}
 
 variable "azure_tenant_id" {
   description = <<-EOT
@@ -228,32 +124,33 @@ variable "azure_subscription_name" {
   type        = string
 }
 
-variable "backend_azure_resource_group_name" {
+
+
+
+
+
+
+variable "variable_groups" {
   description = <<-EOT
-    **(Required)** Name of the Azure resource group containing the Terraform state storage account.
+    **(Required)** Map of per-environment variable groups.
 
-    Referenced in pipeline variables and backend configuration for state management.
+    Creates one variable group per environment, each containing the backend storage
+    configuration for that environment's Terraform state.
+
+    Map configuration where:
+    - **Key**: Environment key (e.g., "mgmt", "conn", "id", "sec")
+    - **Value**: Object containing:
+      - `variable_group_name` (string) - Name of the variable group
+      - `resource_group_name` (string) - Backend state resource group name
+      - `storage_account_name` (string) - Backend state storage account name
+      - `container_name` (string) - Backend state container name
   EOT
-  type        = string
-}
-
-variable "backend_azure_storage_account_name" {
-  description = <<-EOT
-    **(Required)** Name of the Azure storage account used for storing Terraform state files.
-
-    Referenced in pipeline variables to configure Terraform backend for remote state storage.
-  EOT
-  type        = string
-}
-
-variable "backend_azure_storage_account_container_name" {
-  description = <<-EOT
-    **(Required)** Name of the blob container that stores Terraform state files.
-
-    Referenced in pipeline variables for backend configuration.
-    Located within the storage account specified by backend_azure_storage_account_name.
-  EOT
-  type        = string
+  type = map(object({
+    variable_group_name  = string
+    resource_group_name  = string
+    storage_account_name = string
+    container_name       = string
+  }))
 }
 
 variable "approvers" {
@@ -331,4 +228,23 @@ variable "create_branch_policies" {
     and other quality gates before merging changes.
   EOT
   type        = bool
+}
+
+variable "environment_long_names" {
+  description = <<-EOT
+    **(Required)** Map of short environment keys to long display names.
+
+    Used for organizing pipelines into folders with human-readable names.
+
+    Example:
+    ```
+    {
+      mgmt = "management"
+      conn = "connectivity"
+      id   = "identity"
+      sec  = "security"
+    }
+    ```
+  EOT
+  type = map(string)
 }

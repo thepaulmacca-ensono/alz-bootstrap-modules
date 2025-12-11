@@ -1,11 +1,14 @@
+# Per-environment state resource groups
 resource "azurerm_resource_group" "state" {
-  count    = var.create_storage_account ? 1 : 0
-  name     = var.resource_group_state_name
+  for_each = var.create_storage_account ? var.storage_accounts : {}
+  name     = each.value.resource_group_name
   location = var.azure_location
 }
 
+# Per-environment identity resource groups
 resource "azurerm_resource_group" "identity" {
-  name     = var.resource_group_identity_name
+  for_each = var.resource_group_identity_names
+  name     = each.value
   location = var.azure_location
 }
 
