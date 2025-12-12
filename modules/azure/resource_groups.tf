@@ -1,8 +1,8 @@
-# Per-environment state resource groups
+# Per-region state resource groups
 resource "azurerm_resource_group" "state" {
   for_each = var.create_storage_account ? var.storage_accounts : {}
   name     = each.value.resource_group_name
-  location = var.azure_location
+  location = lookup(each.value, "location", var.azure_location)
 }
 
 # Resource lock to prevent accidental deletion of tfstate resource groups

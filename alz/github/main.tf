@@ -1,7 +1,7 @@
-# Shared resource names (uses primary landing zone)
+# Shared resource names (uses primary landing zone and primary region)
 module "resource_names" {
   source                = "../../modules/resource_names"
-  azure_location        = var.bootstrap_location
+  azure_location        = local.primary_region
   environment_name      = lookup(local.landing_zone_short_names, local.primary_landing_zone, local.primary_landing_zone)
   environment_name_long = local.primary_landing_zone
   service_name          = var.service_name
@@ -9,14 +9,27 @@ module "resource_names" {
   resource_names        = merge(var.resource_names, local.custom_role_definitions_bicep_names, local.custom_role_definitions_terraform_names, local.custom_role_definitions_bicep_classic_names)
 }
 
-# Per-landing-zone resource names
+# Per-landing-zone resource names (uses primary region)
 module "resource_names_per_landing_zone" {
   source   = "../../modules/resource_names"
   for_each = toset(local.effective_landing_zones)
 
-  azure_location        = var.bootstrap_location
+  azure_location        = local.primary_region
   environment_name      = lookup(local.landing_zone_short_names, each.key, each.key)
   environment_name_long = each.key
+  service_name          = var.service_name
+  postfix_number        = var.postfix_number
+  resource_names        = merge(var.resource_names, local.custom_role_definitions_bicep_names, local.custom_role_definitions_terraform_names, local.custom_role_definitions_bicep_classic_names)
+}
+
+# Per-region resource names (for storage accounts keyed by region)
+module "resource_names_per_region" {
+  source   = "../../modules/resource_names"
+  for_each = toset(local.effective_regions)
+
+  azure_location        = each.key
+  environment_name      = lookup(local.landing_zone_short_names, local.primary_landing_zone, local.primary_landing_zone)
+  environment_name_long = local.primary_landing_zone
   service_name          = var.service_name
   postfix_number        = var.postfix_number
   resource_names        = merge(var.resource_names, local.custom_role_definitions_bicep_names, local.custom_role_definitions_terraform_names, local.custom_role_definitions_bicep_classic_names)
@@ -40,7 +53,7 @@ module "azure" {
   resource_group_network_name                               = local.resource_names.resource_group_network
   create_storage_account                                    = var.iac_type == local.iac_terraform
   storage_accounts                                          = local.storage_accounts
-  azure_location                                            = var.bootstrap_location
+  azure_location                                            = local.primary_region
   target_subscriptions                                      = local.target_subscriptions
   root_parent_management_group_id                           = local.root_parent_management_group_id
   agent_container_instances                                 = local.runner_container_instances
@@ -102,6 +115,7 @@ module "github" {
   backend_azure_resource_group_name            = local.resource_names.resource_group_state
   backend_azure_storage_account_name           = local.resource_names.storage_account
   backend_azure_storage_account_container_name = local.resource_names.storage_container
+  backend_storage_accounts                     = local.storage_accounts
   approvers                                    = var.apply_approvers
   create_team                                  = var.apply_approval_team_creation_enabled
   existing_team_name                           = var.apply_approval_existing_team_name
@@ -139,4 +153,5 @@ module "file_manipulation" {
   pipeline_template_files_directory_path = local.pipeline_template_files_directory_path
   concurrency_value                      = local.resource_names.storage_container
   enable_dependabot                      = var.enable_dependabot
+  regions                                = local.regions_for_templates
 }

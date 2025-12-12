@@ -95,21 +95,23 @@ variable "create_storage_account" {
 
 variable "storage_accounts" {
   description = <<-EOT
-    **(Required)** Map of storage account configurations for each environment.
+    **(Required)** Map of storage account configurations for each region.
 
-    Each environment gets its own resource group, storage account, and container.
+    Each region gets its own resource group, storage account, and container for Terraform state.
 
     Map structure:
-    - **Key**: Environment identifier (e.g., 'management', 'connectivity')
+    - **Key**: Region identifier (e.g., 'uksouth', 'ukwest') or environment name for backwards compatibility
     - **Value**: Object containing:
       - `resource_group_name` (string) - Name of the resource group for state storage
       - `storage_account_name` (string) - Name of the storage account
       - `container_name` (string) - Name of the blob container
+      - `location` (optional string) - Azure region for this storage account; defaults to `azure_location` if not specified
   EOT
   type = map(object({
     resource_group_name  = string
     storage_account_name = string
     container_name       = string
+    location             = optional(string)
   }))
   default = {}
 }

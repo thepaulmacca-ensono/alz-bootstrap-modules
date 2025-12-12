@@ -118,13 +118,41 @@ variable "starter_module_name" {
 
 variable "bootstrap_location" {
   description = <<-EOT
-    **(Optional, default: `""`)** The Azure region where bootstrap resources will be deployed.
+    **(Deprecated)** Use `regions` instead.
 
-    Specifies the location for storage accounts, managed identities, and other bootstrap resources.
-    Examples: 'uksouth', 'eastus', 'westeurope'
+    The Azure region where bootstrap resources will be deployed.
+    This variable is deprecated and will be removed in a future version.
+    If both `bootstrap_location` and `regions` are specified, `regions` takes precedence.
   EOT
   type        = string
-  default     = ""
+  default     = null
+}
+
+variable "regions" {
+  description = <<-EOT
+    **(Optional)** The Azure regions for multi-region deployment.
+
+    Defines primary and optional secondary regions for deploying landing zones.
+    Each region gets its own state storage account for Terraform state isolation.
+
+    - `primary` - (Required) The primary Azure region (e.g., 'uksouth', 'eastus')
+    - `secondary` - (Optional) The secondary Azure region for disaster recovery
+
+    If not specified, falls back to `bootstrap_location` for backwards compatibility.
+
+    Example:
+    ```hcl
+    regions = {
+      primary   = "uksouth"
+      secondary = "ukwest"
+    }
+    ```
+  EOT
+  type = object({
+    primary   = string
+    secondary = optional(string)
+  })
+  default = null
 }
 
 variable "on_demand_folder_repository" {

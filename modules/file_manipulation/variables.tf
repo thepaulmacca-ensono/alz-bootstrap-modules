@@ -287,3 +287,31 @@ variable "enable_dependabot" {
   type        = bool
   default     = false
 }
+
+variable "regions" {
+  description = <<-EOT
+    **(Optional)** List of regions for multi-region pipeline generation.
+
+    When provided, generates per-region stages in CI/CD pipelines.
+    Each region entry includes the region key and its variable group name.
+
+    List of objects where:
+    - `key` (string) - Region identifier (e.g., 'uksouth', 'ukwest')
+    - `variable_group_name` (string) - Variable group name for this region (Azure DevOps only)
+    - `is_primary` (bool) - Whether this is the primary region
+
+    Example:
+    ```hcl
+    regions = [
+      { key = "uksouth", variable_group_name = "alz-mgmt-uksouth", is_primary = true },
+      { key = "ukwest", variable_group_name = "alz-mgmt-ukwest", is_primary = false }
+    ]
+    ```
+  EOT
+  type = list(object({
+    key                 = string
+    variable_group_name = optional(string, "")
+    is_primary          = optional(bool, false)
+  }))
+  default = []
+}

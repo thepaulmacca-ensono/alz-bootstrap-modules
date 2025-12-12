@@ -42,3 +42,43 @@ resource "github_actions_variable" "backend_azure_storage_account_container_name
   variable_name = "BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME"
   value         = each.value.storage_container_name
 }
+
+# Per-region action variables for multi-region deployments
+locals {
+  # Build a flat map of repo_key-region for per-region variables
+  repo_region_combinations = {
+    for combo in flatten([
+      for repo_key, repo in local.effective_repositories : [
+        for region_key, storage in var.backend_storage_accounts : {
+          key                  = "${repo_key}-${region_key}"
+          repo_key             = repo_key
+          region_key           = upper(region_key)
+          resource_group_name  = storage.resource_group_name
+          storage_account_name = storage.storage_account_name
+          container_name       = storage.container_name
+        }
+      ]
+    ]) : combo.key => combo
+  }
+}
+
+resource "github_actions_variable" "backend_azure_resource_group_name_per_region" {
+  for_each      = local.repo_region_combinations
+  repository    = github_repository.alz[each.value.repo_key].name
+  variable_name = "BACKEND_AZURE_RESOURCE_GROUP_NAME_${each.value.region_key}"
+  value         = each.value.resource_group_name
+}
+
+resource "github_actions_variable" "backend_azure_storage_account_name_per_region" {
+  for_each      = local.repo_region_combinations
+  repository    = github_repository.alz[each.value.repo_key].name
+  variable_name = "BACKEND_AZURE_STORAGE_ACCOUNT_NAME_${each.value.region_key}"
+  value         = each.value.storage_account_name
+}
+
+resource "github_actions_variable" "backend_azure_storage_account_container_name_per_region" {
+  for_each      = local.repo_region_combinations
+  repository    = github_repository.alz[each.value.repo_key].name
+  variable_name = "BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME_${each.value.region_key}"
+  value         = each.value.container_name
+}

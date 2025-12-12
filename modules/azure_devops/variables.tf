@@ -132,24 +132,28 @@ variable "azure_subscription_name" {
 
 variable "variable_groups" {
   description = <<-EOT
-    **(Required)** Map of per-environment variable groups.
+    **(Required)** Map of per-landing-zone-per-region variable groups.
 
-    Creates one variable group per environment, each containing the backend storage
-    configuration for that environment's Terraform state.
+    Creates one variable group per landing zone per region, each containing the backend storage
+    configuration for that landing zone and region's Terraform state.
 
     Map configuration where:
-    - **Key**: Environment key (e.g., "management", "connectivity", "identity", "security")
+    - **Key**: Landing zone and region key (e.g., "management-uksouth", "connectivity-ukwest")
     - **Value**: Object containing:
       - `variable_group_name` (string) - Name of the variable group
       - `resource_group_name` (string) - Backend state resource group name
       - `storage_account_name` (string) - Backend state storage account name
       - `container_name` (string) - Backend state container name
+      - `landing_zone` (optional string) - Landing zone this variable group belongs to
+      - `region` (optional string) - Region this variable group belongs to
   EOT
   type = map(object({
     variable_group_name  = string
     resource_group_name  = string
     storage_account_name = string
     container_name       = string
+    landing_zone         = optional(string)
+    region               = optional(string)
   }))
 }
 

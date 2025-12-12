@@ -9,7 +9,11 @@ stages:
   - stage: validate
     displayName: Validation Terraform
     variables:
+%{ if multi_region_enabled && primary_region != null ~}
+      - group: ${primary_region.variable_group_name}
+%{ else ~}
       - group: ${variable_group_name}
+%{ endif ~}
       - name: 'selfHostedAgent'
         value: '${self_hosted_agent}'
     jobs:

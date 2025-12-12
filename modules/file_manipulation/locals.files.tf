@@ -23,6 +23,10 @@ locals {
     }
   }
 
+  # Compute multi-region settings
+  multi_region_enabled = length(var.regions) > 1
+  primary_region       = try([for r in var.regions : r if r.is_primary][0], try(var.regions[0], null))
+
   templated_files_final = { for key, value in local.templated_files : key => {
     for pipeline_file in value.files : "${var.pipeline_target_folder_name}/${pipeline_file}" => {
       content = templatefile("${value.source_directory_path}/${pipeline_file}", {
@@ -45,6 +49,10 @@ locals {
         cd_template_path                   = "${var.pipeline_target_folder_name}/${coalesce(var.cd_template_file_name, "empty")}"
         script_file_groups                 = local.script_file_groups
         root_module_folder_relative_path   = var.root_module_folder_relative_path
+        # Multi-region support
+        regions              = var.regions
+        multi_region_enabled = local.multi_region_enabled
+        primary_region       = local.primary_region
     }) }
     }
   }

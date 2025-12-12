@@ -23,6 +23,32 @@ locals {
   primary_landing_zone = local.effective_landing_zones[0]
 }
 
+# Region Setup
+# Compute effective regions from the new regions variable, with fallback to bootstrap_location
+locals {
+  # Build ordered list of regions (primary first, then secondary if specified)
+  effective_regions = var.regions != null ? compact([
+    var.regions.primary,
+    var.regions.secondary
+  ]) : (var.bootstrap_location != null && var.bootstrap_location != "" ? [var.bootstrap_location] : [])
+
+  # Primary region for resources that don't need multi-region (e.g., identities, agents)
+  primary_region = length(local.effective_regions) > 0 ? local.effective_regions[0] : ""
+
+  # Whether multi-region deployment is enabled
+  multi_region_enabled = length(local.effective_regions) > 1
+
+  # Regions list for script template generation
+  # Local module doesn't use CI/CD pipelines, but still passes regions for consistency
+  regions_for_templates = [
+    for idx, region in local.effective_regions : {
+      key                 = region
+      variable_group_name = "" # Local doesn't use variable groups
+      is_primary          = idx == 0
+    }
+  ]
+}
+
 # Resource Name Setup
 locals {
   resource_names = module.resource_names.resource_names
@@ -31,6 +57,12 @@ locals {
   resource_names_per_landing_zone = {
     for lz_name in local.effective_landing_zones :
     lz_name => module.resource_names_per_landing_zone[lz_name].resource_names
+  }
+
+  # Per-region resource names (for storage accounts)
+  resource_names_per_region = {
+    for region in local.effective_regions :
+    region => module.resource_names_per_region[region].resource_names
   }
 }
 
@@ -74,13 +106,15 @@ locals {
     lz_name => local.resource_names_per_landing_zone[lz_name].resource_group_identity
   }
 
-  # Per-landing-zone storage accounts
+  # Per-region storage accounts (one storage account per region, shared across all landing zones)
+  # Keys are region names (e.g., "uksouth", "ukwest")
   storage_accounts = {
-    for lz_name in local.effective_landing_zones :
-    lz_name => {
-      resource_group_name  = local.resource_names_per_landing_zone[lz_name].resource_group_state
-      storage_account_name = local.resource_names_per_landing_zone[lz_name].storage_account
-      container_name       = local.resource_names_per_landing_zone[lz_name].storage_container
+    for region in local.effective_regions :
+    region => {
+      resource_group_name  = local.resource_names_per_region[region].resource_group_state
+      storage_account_name = local.resource_names_per_region[region].storage_account
+      container_name       = local.resource_names_per_region[region].storage_container
+      location             = region
     }
   }
 

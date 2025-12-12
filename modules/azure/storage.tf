@@ -1,9 +1,9 @@
-# Per-environment storage accounts
+# Per-region storage accounts
 resource "azurerm_storage_account" "alz" {
   for_each                        = var.create_storage_account ? var.storage_accounts : {}
   name                            = each.value.storage_account_name
   resource_group_name             = azurerm_resource_group.state[each.key].name
-  location                        = var.azure_location
+  location                        = lookup(each.value, "location", var.azure_location)
   account_tier                    = "Standard"
   account_replication_type        = var.storage_account_replication_type
   allow_nested_items_to_be_public = false
@@ -63,36 +63,35 @@ resource "azapi_resource" "storage_account_container" {
   depends_on                = [azurerm_storage_account_network_rules.alz]
 }
 
-# Role assignments for per-env storage containers
-# Each environment's managed identities get access to their environment's storage
+# Role assignments for storage containers
+# All managed identities get access to all regional storage accounts
+# This enables cross-region deployment where any identity can access any region's state
 resource "azurerm_role_assignment" "alz_storage_container" {
   for_each = var.create_storage_account ? {
     for pair in flatten([
-      for env_key, storage in var.storage_accounts : [
+      for storage_key, storage in var.storage_accounts : [
         for mi_key, mi in var.user_assigned_managed_identities :
-        { key = "${env_key}-${mi_key}", env_key = env_key, mi_key = mi_key }
-        if mi.resource_group_key == env_key
+        { key = "${storage_key}-${mi_key}", storage_key = storage_key, mi_key = mi_key }
       ]
     ]) : pair.key => pair
   } : {}
-  scope                = azapi_resource.storage_account_container[each.value.env_key].id
+  scope                = azapi_resource.storage_account_container[each.value.storage_key].id
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = azurerm_user_assigned_identity.alz[each.value.mi_key].principal_id
 }
 
-# Reader role for per-env storage accounts (temporary workaround for Terraform CLI issue)
+# Reader role for storage accounts (temporary workaround for Terraform CLI issue)
 # https://github.com/hashicorp/terraform/issues/36595
 resource "azurerm_role_assignment" "alz_storage_reader" {
   for_each = var.create_storage_account ? {
     for pair in flatten([
-      for env_key, storage in var.storage_accounts : [
+      for storage_key, storage in var.storage_accounts : [
         for mi_key, mi in var.user_assigned_managed_identities :
-        { key = "${env_key}-${mi_key}", env_key = env_key, mi_key = mi_key }
-        if mi.resource_group_key == env_key
+        { key = "${storage_key}-${mi_key}", storage_key = storage_key, mi_key = mi_key }
       ]
     ]) : pair.key => pair
   } : {}
-  scope                = azurerm_storage_account.alz[each.value.env_key].id
+  scope                = azurerm_storage_account.alz[each.value.storage_key].id
   role_definition_name = "Reader"
   principal_id         = azurerm_user_assigned_identity.alz[each.value.mi_key].principal_id
 }

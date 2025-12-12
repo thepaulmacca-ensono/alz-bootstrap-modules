@@ -179,6 +179,21 @@ variable "backend_azure_storage_account_container_name" {
   type        = string
 }
 
+variable "backend_storage_accounts" {
+  description = <<-EOT
+    **(Optional)** Map of per-region backend storage accounts for multi-region deployments.
+
+    When provided, creates additional region-suffixed action variables for each region
+    (e.g., BACKEND_AZURE_STORAGE_ACCOUNT_NAME_UKSOUTH). The key is the region name.
+  EOT
+  type = map(object({
+    resource_group_name  = string
+    storage_account_name = string
+    container_name       = string
+  }))
+  default = {}
+}
+
 variable "approvers" {
   description = <<-EOT
     **(Required)** List of GitHub usernames who are authorized to approve deployments in protected environments.
