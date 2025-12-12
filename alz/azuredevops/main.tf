@@ -2,8 +2,8 @@
 module "resource_names" {
   source                = "../../modules/resource_names"
   azure_location        = var.bootstrap_location
-  environment_name      = local.primary_environment_name
-  environment_name_long = lookup(local.environment_long_names, local.primary_environment_name, local.primary_environment_name)
+  environment_name      = lookup(local.environment_short_names, local.primary_environment_name, local.primary_environment_name)
+  environment_name_long = local.primary_environment_name
   service_name          = var.service_name
   postfix_number        = var.postfix_number
   resource_names        = merge(var.resource_names, local.custom_role_definitions_bicep_names, local.custom_role_definitions_terraform_names, local.custom_role_definitions_bicep_classic_names)
@@ -15,8 +15,8 @@ module "resource_names_per_environment" {
   for_each = toset(local.effective_environment_names)
 
   azure_location        = var.bootstrap_location
-  environment_name      = each.key
-  environment_name_long = lookup(local.environment_long_names, each.key, each.key)
+  environment_name      = lookup(local.environment_short_names, each.key, each.key)
+  environment_name_long = each.key
   service_name          = var.service_name
   postfix_number        = var.postfix_number
   resource_names        = merge(var.resource_names, local.custom_role_definitions_bicep_names, local.custom_role_definitions_terraform_names, local.custom_role_definitions_bicep_classic_names)
@@ -83,25 +83,24 @@ module "azure" {
 }
 
 module "azure_devops" {
-  source                                       = "../../modules/azure_devops"
-  use_legacy_organization_url                  = var.azure_devops_use_organisation_legacy_url
-  organization_name                            = var.azure_devops_organization_name
-  create_project                               = var.azure_devops_create_project
-  project_name                                 = var.azure_devops_project_name
-  repositories                                 = local.repositories
-  template_repository_files                    = module.file_manipulation.template_repository_files
-  use_template_repository                      = var.use_separate_repository_for_templates
-  repository_name_templates                    = local.resource_names.version_control_system_repository_templates
-  variable_groups                              = local.variable_groups
-  azure_tenant_id                              = data.azurerm_client_config.current.tenant_id
-  azure_subscription_id                        = var.subscription_ids["management"]
-  azure_subscription_name                      = data.azurerm_subscription.management.display_name
-  approvers                                    = var.apply_approvers
-  group_name                                   = local.resource_names.version_control_system_group
-  agent_pool_name                              = local.resource_names.version_control_system_agent_pool
-  use_self_hosted_agents                       = var.use_self_hosted_agents
-  create_branch_policies                       = var.create_branch_policies
-  environment_long_names                       = local.environment_long_names
+  source                      = "../../modules/azure_devops"
+  use_legacy_organization_url = var.azure_devops_use_organisation_legacy_url
+  organization_name           = var.azure_devops_organization_name
+  create_project              = var.azure_devops_create_project
+  project_name                = var.azure_devops_project_name
+  repositories                = local.repositories
+  template_repository_files   = module.file_manipulation.template_repository_files
+  use_template_repository     = var.use_separate_repository_for_templates
+  repository_name_templates   = local.resource_names.version_control_system_repository_templates
+  variable_groups             = local.variable_groups
+  azure_tenant_id             = data.azurerm_client_config.current.tenant_id
+  azure_subscription_id       = var.subscription_ids["management"]
+  azure_subscription_name     = data.azurerm_subscription.management.display_name
+  approvers                   = var.apply_approvers
+  group_name                  = local.resource_names.version_control_system_group
+  agent_pool_name             = local.resource_names.version_control_system_agent_pool
+  use_self_hosted_agents      = var.use_self_hosted_agents
+  create_branch_policies      = var.create_branch_policies
 }
 
 module "file_manipulation" {

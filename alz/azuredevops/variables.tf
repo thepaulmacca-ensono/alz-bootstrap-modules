@@ -232,7 +232,7 @@ variable "environment_names" {
     **(Optional, default: `null`)** Map of environment names for multi-environment deployments.
 
     When set, this takes precedence over `environment_name` and enables deployment of multiple
-    environments (e.g., mgmt, connectivity, identity, security) in a single Terraform run.
+    environments (e.g., management, connectivity, identity, security) in a single Terraform run.
 
     All environments share common infrastructure:
     - Templates repository
@@ -251,15 +251,15 @@ variable "environment_names" {
     - Environments
     - Storage container
 
-    Keys must be one of: 'mgmt', 'conn', 'id', 'sec'
+    Keys must be one of: 'management', 'connectivity', 'identity', 'security'
     Values are objects that can optionally override environment-specific settings.
 
     Example:
     ```
     environment_names = {
-      mgmt = {}
-      conn = {}
-      id   = {}
+      management   = {}
+      connectivity = {}
+      identity     = {}
     }
     ```
   EOT
@@ -271,9 +271,9 @@ variable "environment_names" {
   validation {
     condition = var.environment_names == null || alltrue([
       for name in keys(var.environment_names) :
-      contains(["mgmt", "conn", "id", "sec"], name)
+      contains(["management", "connectivity", "identity", "security"], name)
     ])
-    error_message = "Environment names must be one of: 'mgmt', 'conn', 'id', 'sec'"
+    error_message = "Environment names must be one of: 'management', 'connectivity', 'identity', 'security'"
   }
   validation {
     condition = var.environment_names == null || alltrue([

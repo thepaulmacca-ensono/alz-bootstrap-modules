@@ -43,7 +43,7 @@ variable "repositories" {
     When set, this takes precedence over `repository_name`.
 
     Map configuration where:
-    - **Key**: Repository identifier (e.g., environment name like 'mgmt', 'connectivity')
+    - **Key**: Repository identifier (e.g., environment name like 'management', 'connectivity')
     - **Value**: Object containing:
       - `repository_name` (string) - Name of the repository
       - `repository_files` (map) - Files to create in the repository

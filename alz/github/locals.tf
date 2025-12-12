@@ -1,16 +1,16 @@
 # Environment Names Setup
 # Compute effective environment names - use environment_names if set, otherwise fallback to single environment_name
-# Note: We use a predefined order to ensure 'mgmt' is always first (for shared resources naming)
+# Note: We use a predefined order to ensure 'management' is always first (for shared resources naming)
 locals {
-  # Canonical order for environments - mgmt should always be first for shared resource naming
-  canonical_environment_order = ["mgmt", "conn", "id", "sec"]
+  # Canonical order for environments - management should always be first for shared resource naming
+  canonical_environment_order = ["management", "connectivity", "identity", "security"]
 
-  # Map short environment keys to long display names for VCS resources
-  environment_long_names = {
-    mgmt = "management"
-    conn = "connectivity"
-    id   = "identity"
-    sec  = "security"
+  # Map long environment names to short names for Azure resource naming
+  environment_short_names = {
+    management   = "mgmt"
+    connectivity = "conn"
+    identity     = "id"
+    security     = "sec"
   }
 
   # Filter canonical order to only include environments that are specified
@@ -19,7 +19,7 @@ locals {
   ] : [var.environment_name]
 
   # Primary environment is the first one (used for shared resources naming)
-  # With canonical ordering, this will be 'mgmt' when present
+  # With canonical ordering, this will be 'management' when present
   primary_environment_name = local.effective_environment_names[0]
 }
 
@@ -143,15 +143,43 @@ locals {
 locals {
   managed_identities = length(local.effective_environment_names) == 1 ? {
     # Single environment - use simple keys for backwards compatibility
-    (local.plan_key)  = local.resource_names_per_environment[local.primary_environment_name].user_assigned_managed_identity_plan
-    (local.apply_key) = local.resource_names_per_environment[local.primary_environment_name].user_assigned_managed_identity_apply
+    (local.plan_key) = {
+      name               = local.resource_names_per_environment[local.primary_environment_name].user_assigned_managed_identity_plan
+      resource_group_key = local.primary_environment_name
+    }
+    (local.apply_key) = {
+      name               = local.resource_names_per_environment[local.primary_environment_name].user_assigned_managed_identity_apply
+      resource_group_key = local.primary_environment_name
+    }
     } : merge([
       # Multi-environment - use prefixed keys
       for env_name in local.effective_environment_names : {
-        "${env_name}-${local.plan_key}"  = local.resource_names_per_environment[env_name].user_assigned_managed_identity_plan
-        "${env_name}-${local.apply_key}" = local.resource_names_per_environment[env_name].user_assigned_managed_identity_apply
+        "${env_name}-${local.plan_key}" = {
+          name               = local.resource_names_per_environment[env_name].user_assigned_managed_identity_plan
+          resource_group_key = env_name
+        }
+        "${env_name}-${local.apply_key}" = {
+          name               = local.resource_names_per_environment[env_name].user_assigned_managed_identity_apply
+          resource_group_key = env_name
+        }
       }
   ]...)
+
+  # Per-environment identity resource groups
+  resource_group_identity_names = {
+    for env_name in local.effective_environment_names :
+    env_name => local.resource_names_per_environment[env_name].resource_group_identity
+  }
+
+  # Per-environment storage accounts
+  storage_accounts = {
+    for env_name in local.effective_environment_names :
+    env_name => {
+      resource_group_name  = local.resource_names_per_environment[env_name].resource_group_state
+      storage_account_name = local.resource_names_per_environment[env_name].storage_account
+      container_name       = local.resource_names_per_environment[env_name].storage_container
+    }
+  }
 
   # Federated credentials - maps managed identity keys to their OIDC subjects/issuers
   federated_credentials = length(local.effective_environment_names) == 1 ? {
@@ -163,17 +191,17 @@ locals {
       federated_credential_issuer        = module.github.issuer
       federated_credential_name          = "${local.resource_names_per_environment[local.primary_environment_name].user_assigned_managed_identity_federated_credentials_prefix}-${key}"
     }
-  } : merge([
-    # Multi-environment - use prefixed keys matching the github module output
-    for key, value in module.github.subjects : {
-      (key) = {
-        user_assigned_managed_identity_key = value.user_assigned_managed_identity_key
-        federated_credential_subject       = value.subject
-        federated_credential_issuer        = module.github.issuer
-        # Extract env_name from the subject key (format: "env_name-workflow_key-identity_key")
-        federated_credential_name          = "${local.resource_names_per_environment[split("-", key)[0]].user_assigned_managed_identity_federated_credentials_prefix}-${key}"
+    } : merge([
+      # Multi-environment - use prefixed keys matching the github module output
+      for key, value in module.github.subjects : {
+        (key) = {
+          user_assigned_managed_identity_key = value.user_assigned_managed_identity_key
+          federated_credential_subject       = value.subject
+          federated_credential_issuer        = module.github.issuer
+          # Extract env_name from the subject key (format: "env_name-workflow_key-identity_key")
+          federated_credential_name = "${local.resource_names_per_environment[split("-", key)[0]].user_assigned_managed_identity_federated_credentials_prefix}-${key}"
+        }
       }
-    }
   ]...)
 
   runner_container_instances = var.use_self_hosted_runners ? {

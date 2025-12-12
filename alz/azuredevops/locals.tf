@@ -1,16 +1,16 @@
 # Environment Names Setup
 # Compute effective environment names - use environment_names if set, otherwise fallback to single environment_name
-# Note: We use a predefined order to ensure 'mgmt' is always first (for shared resources naming)
+# Note: We use a predefined order to ensure 'management' is always first (for shared resources naming)
 locals {
-  # Canonical order for environments - mgmt should always be first for shared resource naming
-  canonical_environment_order = ["mgmt", "conn", "id", "sec"]
+  # Canonical order for environments - management should always be first for shared resource naming
+  canonical_environment_order = ["management", "connectivity", "identity", "security"]
 
-  # Map short environment keys to long display names for VCS resources
-  environment_long_names = {
-    mgmt = "management"
-    conn = "connectivity"
-    id   = "identity"
-    sec  = "security"
+  # Map long environment names to short names for Azure resource naming
+  environment_short_names = {
+    management   = "mgmt"
+    connectivity = "conn"
+    identity     = "id"
+    security     = "sec"
   }
 
   # Filter canonical order to only include environments that are specified
@@ -19,7 +19,7 @@ locals {
   ] : [var.environment_name]
 
   # Primary environment is the first one (used for shared resources naming)
-  # With canonical ordering, this will be 'mgmt' when present
+  # With canonical ordering, this will be 'management' when present
   primary_environment_name = local.effective_environment_names[0]
 }
 

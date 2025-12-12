@@ -2,8 +2,8 @@
 module "resource_names" {
   source                = "../../modules/resource_names"
   azure_location        = var.bootstrap_location
-  environment_name      = local.primary_environment_name
-  environment_name_long = lookup(local.environment_long_names, local.primary_environment_name, local.primary_environment_name)
+  environment_name      = lookup(local.environment_short_names, local.primary_environment_name, local.primary_environment_name)
+  environment_name_long = local.primary_environment_name
   service_name          = var.service_name
   postfix_number        = var.postfix_number
   resource_names        = merge(var.resource_names, local.custom_role_definitions_bicep_names, local.custom_role_definitions_terraform_names, local.custom_role_definitions_bicep_classic_names)
@@ -15,8 +15,8 @@ module "resource_names_per_environment" {
   for_each = toset(local.effective_environment_names)
 
   azure_location        = var.bootstrap_location
-  environment_name      = each.key
-  environment_name_long = lookup(local.environment_long_names, each.key, each.key)
+  environment_name      = lookup(local.environment_short_names, each.key, each.key)
+  environment_name_long = each.key
   service_name          = var.service_name
   postfix_number        = var.postfix_number
   resource_names        = merge(var.resource_names, local.custom_role_definitions_bicep_names, local.custom_role_definitions_terraform_names, local.custom_role_definitions_bicep_classic_names)
@@ -35,13 +35,11 @@ module "azure" {
   source                                                    = "../../modules/azure"
   user_assigned_managed_identities                          = local.managed_identities
   federated_credentials                                     = local.federated_credentials
-  resource_group_identity_name                              = local.resource_names.resource_group_identity
-  resource_group_state_name                                 = local.resource_names.resource_group_state
+  resource_group_identity_names                             = local.resource_group_identity_names
   resource_group_agents_name                                = local.resource_names.resource_group_agents
   resource_group_network_name                               = local.resource_names.resource_group_network
   create_storage_account                                    = var.iac_type == local.iac_terraform
-  storage_account_name                                      = local.resource_names.storage_account
-  storage_container_name                                    = local.resource_names.storage_container
+  storage_accounts                                          = local.storage_accounts
   azure_location                                            = var.bootstrap_location
   target_subscriptions                                      = local.target_subscriptions
   root_parent_management_group_id                           = local.root_parent_management_group_id

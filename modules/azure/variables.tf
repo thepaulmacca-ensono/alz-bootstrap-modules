@@ -56,7 +56,7 @@ variable "resource_group_identity_names" {
     **(Required)** Map of Azure resource groups for user-assigned managed identities.
 
     Each environment gets its own identity resource group.
-    Keys are environment names (e.g., 'mgmt', 'conn'), values are resource group names.
+    Keys are environment names (e.g., 'management', 'connectivity'), values are resource group names.
   EOT
   type        = map(string)
 }
@@ -100,7 +100,7 @@ variable "storage_accounts" {
     Each environment gets its own resource group, storage account, and container.
 
     Map structure:
-    - **Key**: Environment identifier (e.g., 'mgmt', 'conn')
+    - **Key**: Environment identifier (e.g., 'management', 'connectivity')
     - **Value**: Object containing:
       - `resource_group_name` (string) - Name of the resource group for state storage
       - `storage_account_name` (string) - Name of the storage account

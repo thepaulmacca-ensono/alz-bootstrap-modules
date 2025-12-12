@@ -26,10 +26,10 @@ locals {
     for repo_key, repo in var.repositories : {
       for env_key, env in repo.environments :
       "${repo_key}-${env_key}" => merge(env, {
-        repo_key                    = repo_key
-        env_key                     = env_key
-        managed_identity_client_id  = repo.managed_identity_client_ids[env_key]
-        repository_name             = repo.repository_name
+        repo_key                   = repo_key
+        env_key                    = env_key
+        managed_identity_client_id = repo.managed_identity_client_ids[env_key]
+        repository_name            = repo.repository_name
       })
     }
   ]...)

@@ -28,7 +28,7 @@ output "repository_names" {
   value = local.use_multi_repository_mode ? {
     for repo_key, repo in local.effective_repositories :
     repo_key => github_repository.alz[repo_key].name
-  } : {
+    } : {
     module    = github_repository.alz["default"].name
     templates = var.use_template_repository ? github_repository.alz_templates[0].name : ""
   }

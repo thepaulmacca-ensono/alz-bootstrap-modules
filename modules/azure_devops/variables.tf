@@ -46,7 +46,7 @@ variable "repositories" {
     Each repository entry includes its own environments, pipelines, and service connections.
 
     Map configuration where:
-    - **Key**: Repository identifier (e.g., environment name like 'mgmt', 'connectivity')
+    - **Key**: Repository identifier (e.g., environment name like 'management', 'connectivity')
     - **Value**: Object containing:
       - `repository_name` (string) - Name of the repository
       - `repository_files` (map) - Files to create in the repository
@@ -138,7 +138,7 @@ variable "variable_groups" {
     configuration for that environment's Terraform state.
 
     Map configuration where:
-    - **Key**: Environment key (e.g., "mgmt", "conn", "id", "sec")
+    - **Key**: Environment key (e.g., "management", "connectivity", "identity", "security")
     - **Value**: Object containing:
       - `variable_group_name` (string) - Name of the variable group
       - `resource_group_name` (string) - Backend state resource group name
@@ -228,23 +228,4 @@ variable "create_branch_policies" {
     and other quality gates before merging changes.
   EOT
   type        = bool
-}
-
-variable "environment_long_names" {
-  description = <<-EOT
-    **(Required)** Map of short environment keys to long display names.
-
-    Used for organizing pipelines into folders with human-readable names.
-
-    Example:
-    ```
-    {
-      mgmt = "management"
-      conn = "connectivity"
-      id   = "identity"
-      sec  = "security"
-    }
-    ```
-  EOT
-  type = map(string)
 }

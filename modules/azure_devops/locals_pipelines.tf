@@ -1,6 +1,6 @@
 locals {
   # Flatten pipelines across all repositories
-  # Keys are formatted as "repo_key-pipeline_key" (e.g., "mgmt-ci", "connectivity-cd")
+  # Keys are formatted as "repo_key-pipeline_key" (e.g., "management-ci", "connectivity-cd")
   all_pipelines = merge([
     for repo_key, repo in var.repositories : {
       for pipeline_key, pipeline in repo.pipelines :
@@ -8,16 +8,16 @@ locals {
         repo_key      = repo_key
         pipeline_key  = pipeline_key
         pipeline_name = pipeline.pipeline_name
-        # Organize pipelines into folders by environment (using long names)
-        pipeline_folder = "\\${lookup(var.environment_long_names, repo_key, repo_key)}"
+        # Organize pipelines into folders by environment (repo_key is already the long name)
+        pipeline_folder = "\\${repo_key}"
         # Reference the file in the correct repository
         file = azuredevops_git_repository_file.alz["${repo_key}/${pipeline.pipeline_file_name}"].file
         # Environment keys need to be prefixed with repo_key to match all_environments
         environments = [for environment_key in pipeline.environment_keys :
           {
-            environment_key          = environment_key
-            full_environment_key     = "${repo_key}-${environment_key}"
-            environment_id           = azuredevops_environment.alz["${repo_key}-${environment_key}"].id
+            environment_key      = environment_key
+            full_environment_key = "${repo_key}-${environment_key}"
+            environment_id       = azuredevops_environment.alz["${repo_key}-${environment_key}"].id
           }
         ]
         # Service connection keys need to be prefixed with repo_key to match all_environments
