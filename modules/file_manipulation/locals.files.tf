@@ -70,6 +70,6 @@ locals {
   module_files_filtered = { for key, value in local.module_files_supported : key => value if !contains(local.excluded_module_files, key) }
 
   # Create final maps of all files to be included in the repositories
-  repository_files          = merge(local.templated_files_final.main_files, local.module_files_filtered, local.use_separate_repository_for_templates ? {} : local.templated_files_final.template_files, local.bicep_module_files_templated, local.dependency_management_files)
+  repository_files          = merge(local.templated_files_final.main_files, local.module_files_filtered, local.use_separate_repository_for_templates ? {} : local.templated_files_final.template_files, local.bicep_module_files_templated, local.dependency_management_files, local.pull_request_template_files)
   template_repository_files = local.use_separate_repository_for_templates ? local.templated_files_final.template_files : {}
 }
