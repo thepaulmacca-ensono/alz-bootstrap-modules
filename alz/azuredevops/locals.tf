@@ -1,36 +1,36 @@
-# Environment Names Setup
-# Compute effective environment names - use environment_names if set, otherwise fallback to single environment_name
+# Landing Zone Setup
+# Compute effective landing zones - use landing_zones if set, otherwise fallback to single landing_zone
 # Note: We use a predefined order to ensure 'management' is always first (for shared resources naming)
 locals {
-  # Canonical order for environments - management should always be first for shared resource naming
-  canonical_environment_order = ["management", "connectivity", "identity", "security"]
+  # Canonical order for landing zones - management should always be first for shared resource naming
+  canonical_landing_zone_order = ["management", "connectivity", "identity", "security"]
 
-  # Map long environment names to short names for Azure resource naming
-  environment_short_names = {
+  # Map long landing zone names to short names for Azure resource naming
+  landing_zone_short_names = {
     management   = "mgmt"
     connectivity = "conn"
     identity     = "id"
     security     = "sec"
   }
 
-  # Filter canonical order to only include environments that are specified
-  effective_environment_names = var.environment_names != null ? [
-    for env in local.canonical_environment_order : env if contains(keys(var.environment_names), env)
-  ] : [var.environment_name]
+  # Filter canonical order to only include landing zones that are specified
+  effective_landing_zones = var.landing_zones != null ? [
+    for lz in local.canonical_landing_zone_order : lz if contains(keys(var.landing_zones), lz)
+  ] : [var.landing_zone]
 
-  # Primary environment is the first one (used for shared resources naming)
+  # Primary landing zone is the first one (used for shared resources naming)
   # With canonical ordering, this will be 'management' when present
-  primary_environment_name = local.effective_environment_names[0]
+  primary_landing_zone = local.effective_landing_zones[0]
 }
 
 # Resource Name Setup
 locals {
   resource_names = module.resource_names.resource_names
 
-  # Per-environment resource names
-  resource_names_per_environment = {
-    for env_name in local.effective_environment_names :
-    env_name => module.resource_names_per_environment[env_name].resource_names
+  # Per-landing-zone resource names
+  resource_names_per_landing_zone = {
+    for lz_name in local.effective_landing_zones :
+    lz_name => module.resource_names_per_landing_zone[lz_name].resource_names
   }
 }
 
@@ -69,63 +69,63 @@ locals {
   target_subscriptions        = length(var.subscription_ids) > 0 ? distinct(values(var.subscription_ids)) : local.target_subscriptions_legacy
 }
 
-# Managed identities - keys are prefixed with environment: "mgmt-plan", "conn-apply", etc.
-# Each identity includes name and resource_group_key to support per-environment resource groups
+# Managed identities - keys are prefixed with landing zone: "mgmt-plan", "conn-apply", etc.
+# Each identity includes name and resource_group_key to support per-landing-zone resource groups
 locals {
   managed_identities = merge([
-    for env_name in local.effective_environment_names : {
-      "${env_name}-${local.plan_key}" = {
-        name               = local.resource_names_per_environment[env_name].user_assigned_managed_identity_plan
-        resource_group_key = env_name
+    for lz_name in local.effective_landing_zones : {
+      "${lz_name}-${local.plan_key}" = {
+        name               = local.resource_names_per_landing_zone[lz_name].user_assigned_managed_identity_plan
+        resource_group_key = lz_name
       }
-      "${env_name}-${local.apply_key}" = {
-        name               = local.resource_names_per_environment[env_name].user_assigned_managed_identity_apply
-        resource_group_key = env_name
+      "${lz_name}-${local.apply_key}" = {
+        name               = local.resource_names_per_landing_zone[lz_name].user_assigned_managed_identity_apply
+        resource_group_key = lz_name
       }
     }
   ]...)
 
-  # Per-environment identity resource groups
+  # Per-landing-zone identity resource groups
   resource_group_identity_names = {
-    for env_name in local.effective_environment_names :
-    env_name => local.resource_names_per_environment[env_name].resource_group_identity
+    for lz_name in local.effective_landing_zones :
+    lz_name => local.resource_names_per_landing_zone[lz_name].resource_group_identity
   }
 
-  # Per-environment storage accounts
+  # Per-landing-zone storage accounts
   storage_accounts = {
-    for env_name in local.effective_environment_names :
-    env_name => {
-      resource_group_name  = local.resource_names_per_environment[env_name].resource_group_state
-      storage_account_name = local.resource_names_per_environment[env_name].storage_account
-      container_name       = local.resource_names_per_environment[env_name].storage_container
+    for lz_name in local.effective_landing_zones :
+    lz_name => {
+      resource_group_name  = local.resource_names_per_landing_zone[lz_name].resource_group_state
+      storage_account_name = local.resource_names_per_landing_zone[lz_name].storage_account
+      container_name       = local.resource_names_per_landing_zone[lz_name].storage_container
     }
   }
 
-  # Per-environment variable groups
+  # Per-landing-zone variable groups
   variable_groups = {
-    for env_name in local.effective_environment_names :
-    env_name => {
-      variable_group_name  = local.resource_names_per_environment[env_name].version_control_system_variable_group
-      resource_group_name  = local.resource_names_per_environment[env_name].resource_group_state
-      storage_account_name = local.resource_names_per_environment[env_name].storage_account
-      container_name       = local.resource_names_per_environment[env_name].storage_container
+    for lz_name in local.effective_landing_zones :
+    lz_name => {
+      variable_group_name  = local.resource_names_per_landing_zone[lz_name].version_control_system_variable_group
+      resource_group_name  = local.resource_names_per_landing_zone[lz_name].resource_group_state
+      storage_account_name = local.resource_names_per_landing_zone[lz_name].storage_account
+      container_name       = local.resource_names_per_landing_zone[lz_name].storage_container
     }
   }
 
   # Federated credentials - maps managed identity keys to their OIDC subjects/issuers
   federated_credentials = merge([
-    for env_name in local.effective_environment_names : {
-      "${env_name}-${local.plan_key}" = {
-        user_assigned_managed_identity_key = "${env_name}-${local.plan_key}"
-        federated_credential_subject       = module.azure_devops.subjects["${env_name}-${local.plan_key}"]
-        federated_credential_issuer        = module.azure_devops.issuers["${env_name}-${local.plan_key}"]
-        federated_credential_name          = local.resource_names_per_environment[env_name].user_assigned_managed_identity_federated_credentials_plan
+    for lz_name in local.effective_landing_zones : {
+      "${lz_name}-${local.plan_key}" = {
+        user_assigned_managed_identity_key = "${lz_name}-${local.plan_key}"
+        federated_credential_subject       = module.azure_devops.subjects["${lz_name}-${local.plan_key}"]
+        federated_credential_issuer        = module.azure_devops.issuers["${lz_name}-${local.plan_key}"]
+        federated_credential_name          = local.resource_names_per_landing_zone[lz_name].user_assigned_managed_identity_federated_credentials_plan
       }
-      "${env_name}-${local.apply_key}" = {
-        user_assigned_managed_identity_key = "${env_name}-${local.apply_key}"
-        federated_credential_subject       = module.azure_devops.subjects["${env_name}-${local.apply_key}"]
-        federated_credential_issuer        = module.azure_devops.issuers["${env_name}-${local.apply_key}"]
-        federated_credential_name          = local.resource_names_per_environment[env_name].user_assigned_managed_identity_federated_credentials_apply
+      "${lz_name}-${local.apply_key}" = {
+        user_assigned_managed_identity_key = "${lz_name}-${local.apply_key}"
+        federated_credential_subject       = module.azure_devops.subjects["${lz_name}-${local.apply_key}"]
+        federated_credential_issuer        = module.azure_devops.issuers["${lz_name}-${local.apply_key}"]
+        federated_credential_name          = local.resource_names_per_landing_zone[lz_name].user_assigned_managed_identity_federated_credentials_apply
       }
     }
   ]...)
@@ -152,21 +152,21 @@ locals {
   } : {}
 }
 
-# Per-environment Azure DevOps environments configuration
+# Per-landing-zone Azure DevOps environments configuration
 locals {
-  environments_per_environment = {
-    for env_name in local.effective_environment_names : env_name => {
+  environments_per_landing_zone = {
+    for lz_name in local.effective_landing_zones : lz_name => {
       (local.plan_key) = {
-        environment_name        = local.resource_names_per_environment[env_name].version_control_system_environment_plan
-        service_connection_name = local.resource_names_per_environment[env_name].version_control_system_service_connection_plan
+        environment_name        = local.resource_names_per_landing_zone[lz_name].version_control_system_environment_plan
+        service_connection_name = local.resource_names_per_landing_zone[lz_name].version_control_system_service_connection_plan
         service_connection_required_templates = [
           "${local.target_folder_name}/${local.ci_template_file_name}",
           "${local.target_folder_name}/${local.cd_template_file_name}"
         ]
       }
       (local.apply_key) = {
-        environment_name        = local.resource_names_per_environment[env_name].version_control_system_environment_apply
-        service_connection_name = local.resource_names_per_environment[env_name].version_control_system_service_connection_apply
+        environment_name        = local.resource_names_per_landing_zone[lz_name].version_control_system_environment_apply
+        service_connection_name = local.resource_names_per_landing_zone[lz_name].version_control_system_service_connection_apply
         service_connection_required_templates = [
           "${local.target_folder_name}/${local.cd_template_file_name}"
         ]
@@ -174,12 +174,12 @@ locals {
     }
   }
 
-  # Per-environment pipelines configuration
-  pipelines_per_environment = {
-    for env_name in local.effective_environment_names : env_name => merge(
+  # Per-landing-zone pipelines configuration
+  pipelines_per_landing_zone = {
+    for lz_name in local.effective_landing_zones : lz_name => merge(
       {
         ci = {
-          pipeline_name      = local.resource_names_per_environment[env_name].version_control_system_pipeline_name_ci
+          pipeline_name      = local.resource_names_per_landing_zone[lz_name].version_control_system_pipeline_name_ci
           pipeline_file_name = "${local.target_folder_name}/${local.ci_file_name}"
           environment_keys = [
             local.plan_key
@@ -189,7 +189,7 @@ locals {
           ]
         }
         cd = {
-          pipeline_name      = local.resource_names_per_environment[env_name].version_control_system_pipeline_name_cd
+          pipeline_name      = local.resource_names_per_landing_zone[lz_name].version_control_system_pipeline_name_cd
           pipeline_file_name = "${local.target_folder_name}/${local.cd_file_name}"
           environment_keys = [
             local.plan_key,
@@ -203,7 +203,7 @@ locals {
       },
       var.enable_renovate ? {
         renovate = {
-          pipeline_name           = local.resource_names_per_environment[env_name].version_control_system_pipeline_name_renovate
+          pipeline_name           = local.resource_names_per_landing_zone[lz_name].version_control_system_pipeline_name_renovate
           pipeline_file_name      = "${local.target_folder_name}/${local.renovate_file_name}"
           environment_keys        = []
           service_connection_keys = []
@@ -212,23 +212,23 @@ locals {
     )
   }
 
-  # Per-environment managed identity client IDs map (keyed by plan/apply)
-  managed_identity_client_ids_per_environment = {
-    for env_name in local.effective_environment_names : env_name => {
-      (local.plan_key)  = module.azure.user_assigned_managed_identity_client_ids["${env_name}-${local.plan_key}"]
-      (local.apply_key) = module.azure.user_assigned_managed_identity_client_ids["${env_name}-${local.apply_key}"]
+  # Per-landing-zone managed identity client IDs map (keyed by plan/apply)
+  managed_identity_client_ids_per_landing_zone = {
+    for lz_name in local.effective_landing_zones : lz_name => {
+      (local.plan_key)  = module.azure.user_assigned_managed_identity_client_ids["${lz_name}-${local.plan_key}"]
+      (local.apply_key) = module.azure.user_assigned_managed_identity_client_ids["${lz_name}-${local.apply_key}"]
     }
   }
 
-  # Multi-environment repositories map for azure_devops module
+  # Multi-landing-zone repositories map for azure_devops module
   repositories = {
-    for env_name in local.effective_environment_names : env_name => {
-      repository_name             = local.resource_names_per_environment[env_name].version_control_system_repository
-      repository_files            = module.file_manipulation.repository_files # TODO: Per-environment files
-      environments                = local.environments_per_environment[env_name]
-      pipelines                   = local.pipelines_per_environment[env_name]
-      managed_identity_client_ids = local.managed_identity_client_ids_per_environment[env_name]
-      storage_container_name      = local.resource_names_per_environment[env_name].storage_container
+    for lz_name in local.effective_landing_zones : lz_name => {
+      repository_name             = local.resource_names_per_landing_zone[lz_name].version_control_system_repository
+      repository_files            = module.file_manipulation.repository_files # TODO: Per-landing-zone files
+      environments                = local.environments_per_landing_zone[lz_name]
+      pipelines                   = local.pipelines_per_landing_zone[lz_name]
+      managed_identity_client_ids = local.managed_identity_client_ids_per_landing_zone[lz_name]
+      storage_container_name      = local.resource_names_per_landing_zone[lz_name].storage_container
     }
   }
 }
@@ -272,25 +272,25 @@ locals {
 }
 
 # Role assignments expansion - identity keys are prefixed: "mgmt-plan", "conn-apply", etc.
-# This local expands the base role assignments to cover all environment identities
+# This local expands the base role assignments to cover all landing zone identities
 locals {
   role_assignments_terraform_expanded = merge([
-    for env_name in local.effective_environment_names : {
+    for lz_name in local.effective_landing_zones : {
       for key, value in var.role_assignments_terraform :
-      "${env_name}-${key}" => {
+      "${lz_name}-${key}" => {
         custom_role_definition_key         = value.custom_role_definition_key
-        user_assigned_managed_identity_key = "${env_name}-${value.user_assigned_managed_identity_key}"
+        user_assigned_managed_identity_key = "${lz_name}-${value.user_assigned_managed_identity_key}"
         scope                              = value.scope
       }
     }
   ]...)
 
   role_assignments_bicep_expanded = merge([
-    for env_name in local.effective_environment_names : {
+    for lz_name in local.effective_landing_zones : {
       for key, value in var.role_assignments_bicep :
-      "${env_name}-${key}" => {
+      "${lz_name}-${key}" => {
         custom_role_definition_key         = value.custom_role_definition_key
-        user_assigned_managed_identity_key = "${env_name}-${value.user_assigned_managed_identity_key}"
+        user_assigned_managed_identity_key = "${lz_name}-${value.user_assigned_managed_identity_key}"
         scope                              = value.scope
       }
     }

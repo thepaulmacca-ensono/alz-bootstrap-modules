@@ -209,32 +209,32 @@ variable "service_name" {
   }
 }
 
-variable "environment_name" {
+variable "landing_zone" {
   description = <<-EOT
-    **(Optional, default: `"mgmt"`)** **DEPRECATED** - Use `environment_names` instead.
+    **(Optional, default: `"mgmt"`)** **DEPRECATED** - Use `landing_zones` instead.
 
     Used to build up the default resource names.
-    Example: rg-alz-**<environment_name>**-uksouth-001
+    Example: rg-alz-**<landing_zone>**-uksouth-001
 
     Must contain only lowercase letters and numbers.
-    This variable is ignored if `environment_names` is set.
+    This variable is ignored if `landing_zones` is set.
   EOT
   type        = string
   default     = "mgmt"
   validation {
-    condition     = can(regex("^[a-z0-9]+$", var.environment_name))
-    error_message = "The environment name must only contain lowercase letters and numbers"
+    condition     = can(regex("^[a-z0-9]+$", var.landing_zone))
+    error_message = "The landing zone name must only contain lowercase letters and numbers"
   }
 }
 
-variable "environment_names" {
+variable "landing_zones" {
   description = <<-EOT
-    **(Optional, default: `null`)** Map of environment names for multi-environment deployments.
+    **(Optional, default: `null`)** Map of landing zone names for multi-landing-zone deployments.
 
-    When set, this takes precedence over `environment_name` and enables deployment of multiple
-    environments (e.g., management, connectivity, identity, security) in a single Terraform run.
+    When set, this takes precedence over `landing_zone` and enables deployment of multiple
+    landing zones (e.g., management, connectivity, identity, security) in a single Terraform run.
 
-    All environments share common infrastructure:
+    All landing zones share common infrastructure:
     - Templates repository
     - Storage account
     - Resource groups (state, identity, agents, network)
@@ -243,7 +243,7 @@ variable "environment_names" {
     - Virtual network
     - Agent pool
 
-    Each environment gets its own:
+    Each landing zone gets its own:
     - Main repository
     - Managed identities (plan/apply)
     - Federated credentials
@@ -252,11 +252,11 @@ variable "environment_names" {
     - Storage container
 
     Keys must be one of: 'management', 'connectivity', 'identity', 'security'
-    Values are objects that can optionally override environment-specific settings.
+    Values are objects that can optionally override landing-zone-specific settings.
 
     Example:
     ```
-    environment_names = {
+    landing_zones = {
       management   = {}
       connectivity = {}
       identity     = {}
@@ -264,23 +264,23 @@ variable "environment_names" {
     ```
   EOT
   type = map(object({
-    # Future: per-environment overrides can be added here
+    # Future: per-landing-zone overrides can be added here
   }))
   default  = null
   nullable = true
   validation {
-    condition = var.environment_names == null || alltrue([
-      for name in keys(var.environment_names) :
+    condition = var.landing_zones == null || alltrue([
+      for name in keys(var.landing_zones) :
       contains(["management", "connectivity", "identity", "security"], name)
     ])
-    error_message = "Environment names must be one of: 'management', 'connectivity', 'identity', 'security'"
+    error_message = "Landing zone names must be one of: 'management', 'connectivity', 'identity', 'security'"
   }
   validation {
-    condition = var.environment_names == null || alltrue([
-      for name in keys(var.environment_names) :
+    condition = var.landing_zones == null || alltrue([
+      for name in keys(var.landing_zones) :
       can(regex("^[a-z0-9]+$", name))
     ])
-    error_message = "Environment names must only contain lowercase letters and numbers"
+    error_message = "Landing zone names must only contain lowercase letters and numbers"
   }
 }
 

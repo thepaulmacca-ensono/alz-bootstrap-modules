@@ -1,36 +1,36 @@
-# Environment Names Setup
-# Compute effective environment names - use environment_names if set, otherwise fallback to single environment_name
+# Landing Zone Setup
+# Compute effective landing zones - use landing_zones if set, otherwise fallback to single landing_zone
 # Note: We use a predefined order to ensure 'management' is always first (for shared resources naming)
 locals {
-  # Canonical order for environments - management should always be first for shared resource naming
-  canonical_environment_order = ["management", "connectivity", "identity", "security"]
+  # Canonical order for landing zones - management should always be first for shared resource naming
+  canonical_landing_zone_order = ["management", "connectivity", "identity", "security"]
 
-  # Map long environment names to short names for Azure resource naming
-  environment_short_names = {
+  # Map long landing zone names to short names for Azure resource naming
+  landing_zone_short_names = {
     management   = "mgmt"
     connectivity = "conn"
     identity     = "id"
     security     = "sec"
   }
 
-  # Filter canonical order to only include environments that are specified
-  effective_environment_names = var.environment_names != null ? [
-    for env in local.canonical_environment_order : env if contains(keys(var.environment_names), env)
-  ] : [var.environment_name]
+  # Filter canonical order to only include landing zones that are specified
+  effective_landing_zones = var.landing_zones != null ? [
+    for lz in local.canonical_landing_zone_order : lz if contains(keys(var.landing_zones), lz)
+  ] : [var.landing_zone]
 
-  # Primary environment is the first one (used for shared resources naming)
+  # Primary landing zone is the first one (used for shared resources naming)
   # With canonical ordering, this will be 'management' when present
-  primary_environment_name = local.effective_environment_names[0]
+  primary_landing_zone = local.effective_landing_zones[0]
 }
 
 # Resource Name Setup
 locals {
   resource_names = module.resource_names.resource_names
 
-  # Per-environment resource names
-  resource_names_per_environment = {
-    for env_name in local.effective_environment_names :
-    env_name => module.resource_names_per_environment[env_name].resource_names
+  # Per-landing-zone resource names
+  resource_names_per_landing_zone = {
+    for lz_name in local.effective_landing_zones :
+    lz_name => module.resource_names_per_landing_zone[lz_name].resource_names
   }
 }
 
@@ -76,21 +76,21 @@ locals {
   target_subscriptions        = length(var.subscription_ids) > 0 ? distinct(values(var.subscription_ids)) : local.target_subscriptions_legacy
 }
 
-# Per-environment GitHub environments configuration
+# Per-landing-zone GitHub environments configuration
 locals {
-  environments_per_environment = {
-    for env_name in local.effective_environment_names : env_name => {
-      (local.plan_key)  = local.resource_names_per_environment[env_name].version_control_system_environment_plan
-      (local.apply_key) = local.resource_names_per_environment[env_name].version_control_system_environment_apply
+  environments_per_landing_zone = {
+    for lz_name in local.effective_landing_zones : lz_name => {
+      (local.plan_key)  = local.resource_names_per_landing_zone[lz_name].version_control_system_environment_plan
+      (local.apply_key) = local.resource_names_per_landing_zone[lz_name].version_control_system_environment_apply
     }
   }
 
-  # Legacy single-environment format (for backwards compatibility during transition)
-  environments = local.environments_per_environment[local.primary_environment_name]
+  # Legacy single-landing-zone format (for backwards compatibility during transition)
+  environments = local.environments_per_landing_zone[local.primary_landing_zone]
 
-  # Per-environment workflows configuration
-  workflows_per_environment = {
-    for env_name in local.effective_environment_names : env_name => {
+  # Per-landing-zone workflows configuration
+  workflows_per_landing_zone = {
+    for lz_name in local.effective_landing_zones : lz_name => {
       ci = {
         workflow_file_name = "${local.target_folder_name}/${local.ci_template_file_name}"
         environment_user_assigned_managed_identity_mappings = [
@@ -116,90 +116,90 @@ locals {
     }
   }
 
-  # Per-environment managed identity client IDs map (keyed by plan/apply)
-  managed_identity_client_ids_per_environment = {
-    for env_name in local.effective_environment_names : env_name => {
-      (local.plan_key)  = module.azure.user_assigned_managed_identity_client_ids[length(local.effective_environment_names) == 1 ? local.plan_key : "${env_name}-${local.plan_key}"]
-      (local.apply_key) = module.azure.user_assigned_managed_identity_client_ids[length(local.effective_environment_names) == 1 ? local.apply_key : "${env_name}-${local.apply_key}"]
+  # Per-landing-zone managed identity client IDs map (keyed by plan/apply)
+  managed_identity_client_ids_per_landing_zone = {
+    for lz_name in local.effective_landing_zones : lz_name => {
+      (local.plan_key)  = module.azure.user_assigned_managed_identity_client_ids[length(local.effective_landing_zones) == 1 ? local.plan_key : "${lz_name}-${local.plan_key}"]
+      (local.apply_key) = module.azure.user_assigned_managed_identity_client_ids[length(local.effective_landing_zones) == 1 ? local.apply_key : "${lz_name}-${local.apply_key}"]
     }
   }
 
-  # Multi-environment repositories map for github module
-  # Used when environment_names contains more than one environment
-  repositories = length(local.effective_environment_names) == 1 ? null : {
-    for env_name in local.effective_environment_names : env_name => {
-      repository_name             = local.resource_names_per_environment[env_name].version_control_system_repository
-      repository_files            = module.file_manipulation.repository_files # TODO: Per-environment files
-      environments                = local.environments_per_environment[env_name]
-      workflows                   = local.workflows_per_environment[env_name]
-      managed_identity_client_ids = local.managed_identity_client_ids_per_environment[env_name]
-      storage_container_name      = local.resource_names_per_environment[env_name].storage_container
+  # Multi-landing-zone repositories map for github module
+  # Used when landing_zones contains more than one landing zone
+  repositories = length(local.effective_landing_zones) == 1 ? null : {
+    for lz_name in local.effective_landing_zones : lz_name => {
+      repository_name             = local.resource_names_per_landing_zone[lz_name].version_control_system_repository
+      repository_files            = module.file_manipulation.repository_files # TODO: Per-landing-zone files
+      environments                = local.environments_per_landing_zone[lz_name]
+      workflows                   = local.workflows_per_landing_zone[lz_name]
+      managed_identity_client_ids = local.managed_identity_client_ids_per_landing_zone[lz_name]
+      storage_container_name      = local.resource_names_per_landing_zone[lz_name].storage_container
     }
   }
 }
 
-# Managed identities - currently single environment, prepared for multi-environment expansion
-# When multi-environment is enabled, keys will be like "mgmt-plan", "connectivity-plan", etc.
+# Managed identities - currently single landing zone, prepared for multi-landing-zone expansion
+# When multi-landing-zone is enabled, keys will be like "mgmt-plan", "connectivity-plan", etc.
 locals {
-  managed_identities = length(local.effective_environment_names) == 1 ? {
-    # Single environment - use simple keys for backwards compatibility
+  managed_identities = length(local.effective_landing_zones) == 1 ? {
+    # Single landing zone - use simple keys for backwards compatibility
     (local.plan_key) = {
-      name               = local.resource_names_per_environment[local.primary_environment_name].user_assigned_managed_identity_plan
-      resource_group_key = local.primary_environment_name
+      name               = local.resource_names_per_landing_zone[local.primary_landing_zone].user_assigned_managed_identity_plan
+      resource_group_key = local.primary_landing_zone
     }
     (local.apply_key) = {
-      name               = local.resource_names_per_environment[local.primary_environment_name].user_assigned_managed_identity_apply
-      resource_group_key = local.primary_environment_name
+      name               = local.resource_names_per_landing_zone[local.primary_landing_zone].user_assigned_managed_identity_apply
+      resource_group_key = local.primary_landing_zone
     }
     } : merge([
-      # Multi-environment - use prefixed keys
-      for env_name in local.effective_environment_names : {
-        "${env_name}-${local.plan_key}" = {
-          name               = local.resource_names_per_environment[env_name].user_assigned_managed_identity_plan
-          resource_group_key = env_name
+      # Multi-landing-zone - use prefixed keys
+      for lz_name in local.effective_landing_zones : {
+        "${lz_name}-${local.plan_key}" = {
+          name               = local.resource_names_per_landing_zone[lz_name].user_assigned_managed_identity_plan
+          resource_group_key = lz_name
         }
-        "${env_name}-${local.apply_key}" = {
-          name               = local.resource_names_per_environment[env_name].user_assigned_managed_identity_apply
-          resource_group_key = env_name
+        "${lz_name}-${local.apply_key}" = {
+          name               = local.resource_names_per_landing_zone[lz_name].user_assigned_managed_identity_apply
+          resource_group_key = lz_name
         }
       }
   ]...)
 
-  # Per-environment identity resource groups
+  # Per-landing-zone identity resource groups
   resource_group_identity_names = {
-    for env_name in local.effective_environment_names :
-    env_name => local.resource_names_per_environment[env_name].resource_group_identity
+    for lz_name in local.effective_landing_zones :
+    lz_name => local.resource_names_per_landing_zone[lz_name].resource_group_identity
   }
 
-  # Per-environment storage accounts
+  # Per-landing-zone storage accounts
   storage_accounts = {
-    for env_name in local.effective_environment_names :
-    env_name => {
-      resource_group_name  = local.resource_names_per_environment[env_name].resource_group_state
-      storage_account_name = local.resource_names_per_environment[env_name].storage_account
-      container_name       = local.resource_names_per_environment[env_name].storage_container
+    for lz_name in local.effective_landing_zones :
+    lz_name => {
+      resource_group_name  = local.resource_names_per_landing_zone[lz_name].resource_group_state
+      storage_account_name = local.resource_names_per_landing_zone[lz_name].storage_account
+      container_name       = local.resource_names_per_landing_zone[lz_name].storage_container
     }
   }
 
   # Federated credentials - maps managed identity keys to their OIDC subjects/issuers
-  federated_credentials = length(local.effective_environment_names) == 1 ? {
-    # Single environment - use existing module.github output structure
+  federated_credentials = length(local.effective_landing_zones) == 1 ? {
+    # Single landing zone - use existing module.github output structure
     for key, value in module.github.subjects :
     key => {
       user_assigned_managed_identity_key = value.user_assigned_managed_identity_key
       federated_credential_subject       = value.subject
       federated_credential_issuer        = module.github.issuer
-      federated_credential_name          = "${local.resource_names_per_environment[local.primary_environment_name].user_assigned_managed_identity_federated_credentials_prefix}-${key}"
+      federated_credential_name          = "${local.resource_names_per_landing_zone[local.primary_landing_zone].user_assigned_managed_identity_federated_credentials_prefix}-${key}"
     }
     } : merge([
-      # Multi-environment - use prefixed keys matching the github module output
+      # Multi-landing-zone - use prefixed keys matching the github module output
       for key, value in module.github.subjects : {
         (key) = {
           user_assigned_managed_identity_key = value.user_assigned_managed_identity_key
           federated_credential_subject       = value.subject
           federated_credential_issuer        = module.github.issuer
-          # Extract env_name from the subject key (format: "env_name-workflow_key-identity_key")
-          federated_credential_name = "${local.resource_names_per_environment[split("-", key)[0]].user_assigned_managed_identity_federated_credentials_prefix}-${key}"
+          # Extract lz_name from the subject key (format: "lz_name-workflow_key-identity_key")
+          federated_credential_name = "${local.resource_names_per_landing_zone[split("-", key)[0]].user_assigned_managed_identity_federated_credentials_prefix}-${key}"
         }
       }
   ]...)
