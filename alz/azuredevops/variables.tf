@@ -544,7 +544,7 @@ variable "resource_names" {
     All fields are optional and use default templates if not specified.
   EOT
   type = object({
-    resource_group_state                                       = optional(string, "rg-{{service_name}}-{{environment_name}}-state-{{azure_location}}-{{postfix_number}}")
+    resource_group_state                                       = optional(string, "rg-{{service_name}}-{{environment_name}}-tfstate-{{azure_location}}-{{postfix_number}}")
     resource_group_identity                                    = optional(string, "rg-{{service_name}}-{{environment_name}}-identity-{{azure_location}}-{{postfix_number}}")
     resource_group_agents                                      = optional(string, "rg-{{service_name}}-{{environment_name}}-agents-{{azure_location}}-{{postfix_number}}")
     resource_group_network                                     = optional(string, "rg-{{service_name}}-{{environment_name}}-network-{{azure_location}}-{{postfix_number}}")
@@ -1154,13 +1154,14 @@ variable "storage_account_blob_versioning_enabled" {
   default     = true
 }
 
-variable "storage_account_lock_enabled" {
+variable "resource_group_lock_enabled" {
   description = <<-EOT
-    **(Optional, default: `true`)** Enable a CanNotDelete resource lock on the storage account.
+    **(Optional, default: `true`)** Enable CanNotDelete resource locks on critical resource groups.
 
-    When enabled, prevents accidental deletion of the storage account containing Terraform state files.
-    The lock must be removed before the storage account can be deleted.
-    Highly recommended for production environments to protect critical state data.
+    When enabled, prevents accidental deletion of the tfstate and identity resource groups.
+    These resource groups contain critical infrastructure (Terraform state storage and managed identities).
+    The locks must be removed before the resource groups can be deleted.
+    Highly recommended for production environments.
   EOT
   type        = bool
   default     = true
