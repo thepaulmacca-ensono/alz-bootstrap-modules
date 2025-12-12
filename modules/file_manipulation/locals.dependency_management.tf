@@ -1,6 +1,5 @@
 locals {
   # Renovate configuration for Azure DevOps
-  # https://docs.renovatebot.com/configuration-options/
   renovate_config_json = <<-JSON
     {
       // See: https://docs.renovatebot.com/configuration-options/
@@ -30,9 +29,10 @@ locals {
   JSON
 
   # Renovate pipeline YAML for Azure DevOps
-  # Requires RENOVATE_TOKEN secret variable to be set in the pipeline (PAT with Code Read & Write permissions)
-  # Also requires a GITHUB_TOKEN secret variable for fetching release notes from GitHub (PAT with Public repositories scope)
   renovate_pipeline_yaml = <<-YAML
+    # Requires RENOVATE_TOKEN secret variable to be set in the pipeline (PAT with Code Read & Write permissions)
+    # Also requires a GITHUB_TOKEN secret variable for fetching release notes from GitHub (PAT with Public repositories scope)
+
     trigger: none
 
     schedules:
@@ -74,8 +74,7 @@ locals {
   } : {}
 
   # Dependabot configuration for GitHub
-  # https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
-  dependabot_config = yamlencode({
+  dependabot_config = "# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file\n${yamlencode({
     version = 2
     updates = [
       {
@@ -88,7 +87,7 @@ locals {
         open-pull-requests-limit = 10
       }
     ]
-  })
+  })}"
 
   dependabot_file = var.enable_dependabot && local.is_github ? {
     ".github/dependabot.yml" = {
