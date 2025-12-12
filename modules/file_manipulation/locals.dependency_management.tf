@@ -60,7 +60,7 @@ locals {
           RENOVATE_ENDPOINT: $(System.CollectionUri)
           RENOVATE_TOKEN: $(RENOVATE_TOKEN)
           RENOVATE_REPOSITORIES: $(System.TeamProject)/$(Build.Repository.Name)
-          GITHUB_COM_TOKEN: $(GITHUB_TOKEN)
+          RENOVATE_GITHUB_COM_TOKEN: $(GITHUB_TOKEN)
           LOG_LEVEL: info
   YAML
 
