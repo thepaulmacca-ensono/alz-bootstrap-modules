@@ -661,3 +661,15 @@ variable "storage_account_blob_versioning_enabled" {
   type        = bool
   default     = true
 }
+
+variable "storage_account_lock_enabled" {
+  description = <<-EOT
+    **(Optional, default: `true`)** Enable a CanNotDelete resource lock on the storage account.
+
+    When enabled, prevents accidental deletion of the storage account containing Terraform state files.
+    The lock must be removed before the storage account can be deleted.
+    Highly recommended for production environments to protect critical state data.
+  EOT
+  type        = bool
+  default     = true
+}

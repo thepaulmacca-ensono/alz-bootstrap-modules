@@ -96,3 +96,12 @@ resource "azurerm_role_assignment" "alz_storage_reader" {
   role_definition_name = "Reader"
   principal_id         = azurerm_user_assigned_identity.alz[each.value.mi_key].principal_id
 }
+
+# Resource lock to prevent accidental deletion of storage accounts containing Terraform state
+resource "azurerm_management_lock" "storage_account" {
+  for_each   = var.create_storage_account && var.storage_account_lock_enabled ? var.storage_accounts : {}
+  name       = "can-not-delete"
+  scope      = azurerm_storage_account.alz[each.key].id
+  lock_level = "CanNotDelete"
+  notes      = "This lock prevents accidental deletion of the storage account containing Terraform state files. Remove this lock before attempting to delete the storage account."
+}

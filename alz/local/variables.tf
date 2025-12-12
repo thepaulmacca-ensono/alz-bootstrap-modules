@@ -910,6 +910,12 @@ variable "storage_account_blob_versioning_enabled" {
   default     = true
 }
 
+variable "storage_account_lock_enabled" {
+  type        = bool
+  description = "Enable a CanNotDelete resource lock on the storage account. When enabled, prevents accidental deletion of the storage account containing Terraform state files. The lock must be removed before the storage account can be deleted."
+  default     = true
+}
+
 variable "bicep_tenant_role_assignment_enabled" {
   type        = bool
   description = "Enable tenant-level role assignment for Bicep deployments. When enabled, assigns the specified role to the managed identity at the tenant root scope, allowing management of resources across the entire Azure AD tenant. Required for tenant-wide policy and management group operations."
