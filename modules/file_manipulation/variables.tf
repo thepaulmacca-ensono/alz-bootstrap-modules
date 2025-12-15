@@ -293,25 +293,40 @@ variable "regions" {
     **(Optional)** List of regions for multi-region pipeline generation.
 
     When provided, generates per-region stages in CI/CD pipelines.
-    Each region entry includes the region key and its variable group name.
+    Each region entry includes the region key, variable group name, and per-region service connections/environments.
 
     List of objects where:
     - `key` (string) - Region identifier (e.g., 'uksouth', 'ukwest')
     - `variable_group_name` (string) - Variable group name for this region (Azure DevOps only)
     - `is_primary` (bool) - Whether this is the primary region
+    - `service_connection_plan` (string) - Service connection name for plan operations in this region
+    - `service_connection_apply` (string) - Service connection name for apply operations in this region
+    - `environment_plan` (string) - Environment name for plan operations in this region
+    - `environment_apply` (string) - Environment name for apply operations in this region
 
     Example:
     ```hcl
     regions = [
-      { key = "uksouth", variable_group_name = "alz-mgmt-uksouth", is_primary = true },
-      { key = "ukwest", variable_group_name = "alz-mgmt-ukwest", is_primary = false }
+      {
+        key = "uksouth",
+        variable_group_name = "alz-mgmt-uksouth",
+        is_primary = true,
+        service_connection_plan = "sc-alz-mgmt-plan-uksouth",
+        service_connection_apply = "sc-alz-mgmt-apply-uksouth",
+        environment_plan = "alz-mgmt-plan-uksouth",
+        environment_apply = "alz-mgmt-apply-uksouth"
+      }
     ]
     ```
   EOT
   type = list(object({
-    key                 = string
-    variable_group_name = optional(string, "")
-    is_primary          = optional(bool, false)
+    key                      = string
+    variable_group_name      = optional(string, "")
+    is_primary               = optional(bool, false)
+    service_connection_plan  = optional(string, "")
+    service_connection_apply = optional(string, "")
+    environment_plan         = optional(string, "")
+    environment_apply        = optional(string, "")
   }))
   default = []
 }

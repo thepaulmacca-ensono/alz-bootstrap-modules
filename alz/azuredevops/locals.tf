@@ -52,11 +52,16 @@ locals {
 
   # Regions list for pipeline template generation
   # Uses primary landing zone's variable groups - each region maps to its variable group
+  # Includes per-region service connections and environments
   regions_for_templates = [
     for idx, region in local.effective_regions : {
-      key                 = region
-      variable_group_name = local.variable_groups["${local.primary_landing_zone}-${region}"].variable_group_name
-      is_primary          = idx == 0
+      key                      = region
+      variable_group_name      = local.variable_groups["${local.primary_landing_zone}-${region}"].variable_group_name
+      is_primary               = idx == 0
+      service_connection_plan  = local.environments_per_landing_zone_region["${local.primary_landing_zone}-${region}"][local.plan_key].service_connection_name
+      service_connection_apply = local.environments_per_landing_zone_region["${local.primary_landing_zone}-${region}"][local.apply_key].service_connection_name
+      environment_plan         = local.environments_per_landing_zone_region["${local.primary_landing_zone}-${region}"][local.plan_key].environment_name
+      environment_apply        = local.environments_per_landing_zone_region["${local.primary_landing_zone}-${region}"][local.apply_key].environment_name
     }
   ]
 }
@@ -203,8 +208,30 @@ locals {
   } : {}
 }
 
-# Per-landing-zone Azure DevOps environments configuration
+# Per-landing-zone-per-region Azure DevOps environments configuration
+# Keys are "landing_zone-region" (e.g., "management-uksouth", "connectivity-ukwest")
 locals {
+  environments_per_landing_zone_region = {
+    for key, value in local.landing_zone_region_combinations : key => {
+      (local.plan_key) = {
+        environment_name        = "${local.resource_names_per_landing_zone[value.landing_zone].version_control_system_environment_plan}-${value.region}"
+        service_connection_name = "${local.resource_names_per_landing_zone[value.landing_zone].version_control_system_service_connection_plan}-${value.region}"
+        service_connection_required_templates = [
+          "${local.target_folder_name}/${local.ci_template_file_name}",
+          "${local.target_folder_name}/${local.cd_template_file_name}"
+        ]
+      }
+      (local.apply_key) = {
+        environment_name        = "${local.resource_names_per_landing_zone[value.landing_zone].version_control_system_environment_apply}-${value.region}"
+        service_connection_name = "${local.resource_names_per_landing_zone[value.landing_zone].version_control_system_service_connection_apply}-${value.region}"
+        service_connection_required_templates = [
+          "${local.target_folder_name}/${local.cd_template_file_name}"
+        ]
+      }
+    }
+  }
+
+  # Legacy per-landing-zone environments (for single-region backwards compatibility)
   environments_per_landing_zone = {
     for lz_name in local.effective_landing_zones : lz_name => {
       (local.plan_key) = {
@@ -271,14 +298,45 @@ locals {
     }
   }
 
+  # Per-landing-zone-per-region managed identity client IDs map
+  # Keys are "region-plan" / "region-apply" to support multi-region deployments
+  managed_identity_client_ids_per_landing_zone_region = {
+    for lz_name in local.effective_landing_zones : lz_name => merge([
+      for region in local.effective_regions : {
+        "${region}-${local.plan_key}"  = module.azure.user_assigned_managed_identity_client_ids["${lz_name}-${local.plan_key}"]
+        "${region}-${local.apply_key}" = module.azure.user_assigned_managed_identity_client_ids["${lz_name}-${local.apply_key}"]
+      }
+    ]...)
+  }
+
+  # Flattened environments per landing zone (includes per-region when multi-region enabled)
+  # Single-region: keys are "plan", "apply"
+  # Multi-region: keys are "uksouth-plan", "ukwest-apply", etc.
+  flattened_environments_per_landing_zone = {
+    for lz_name in local.effective_landing_zones : lz_name => local.multi_region_enabled ? merge([
+      for region in local.effective_regions : {
+        "${region}-${local.plan_key}" = {
+          environment_name                      = local.environments_per_landing_zone_region["${lz_name}-${region}"][local.plan_key].environment_name
+          service_connection_name               = local.environments_per_landing_zone_region["${lz_name}-${region}"][local.plan_key].service_connection_name
+          service_connection_required_templates = local.environments_per_landing_zone_region["${lz_name}-${region}"][local.plan_key].service_connection_required_templates
+        }
+        "${region}-${local.apply_key}" = {
+          environment_name                      = local.environments_per_landing_zone_region["${lz_name}-${region}"][local.apply_key].environment_name
+          service_connection_name               = local.environments_per_landing_zone_region["${lz_name}-${region}"][local.apply_key].service_connection_name
+          service_connection_required_templates = local.environments_per_landing_zone_region["${lz_name}-${region}"][local.apply_key].service_connection_required_templates
+        }
+      }
+    ]...) : local.environments_per_landing_zone[lz_name]
+  }
+
   # Multi-landing-zone repositories map for azure_devops module
   repositories = {
     for lz_name in local.effective_landing_zones : lz_name => {
       repository_name             = local.resource_names_per_landing_zone[lz_name].version_control_system_repository
       repository_files            = module.file_manipulation.repository_files # TODO: Per-landing-zone files
-      environments                = local.environments_per_landing_zone[lz_name]
+      environments                = local.flattened_environments_per_landing_zone[lz_name]
       pipelines                   = local.pipelines_per_landing_zone[lz_name]
-      managed_identity_client_ids = local.managed_identity_client_ids_per_landing_zone[lz_name]
+      managed_identity_client_ids = local.multi_region_enabled ? local.managed_identity_client_ids_per_landing_zone_region[lz_name] : local.managed_identity_client_ids_per_landing_zone[lz_name]
       storage_container_name      = local.resource_names_per_landing_zone[lz_name].storage_container
     }
   }

@@ -54,9 +54,13 @@ locals {
   # Local module doesn't use CI/CD pipelines, but still passes regions for consistency
   regions_for_templates = [
     for idx, region in local.effective_regions : {
-      key                 = region
-      variable_group_name = "" # Local doesn't use variable groups
-      is_primary          = idx == 0
+      key                      = region
+      variable_group_name      = "" # Local doesn't use variable groups
+      is_primary               = idx == 0
+      service_connection_plan  = "" # Local doesn't use service connections
+      service_connection_apply = "" # Local doesn't use service connections
+      environment_plan         = "" # Local doesn't use environments
+      environment_apply        = "" # Local doesn't use environments
     }
   ]
 }

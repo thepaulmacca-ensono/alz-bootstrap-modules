@@ -52,11 +52,16 @@ locals {
 
   # Regions list for workflow template generation
   # GitHub uses environment variables instead of variable groups
+  # Per-region environments for multi-region deployments
   regions_for_templates = [
     for idx, region in local.effective_regions : {
-      key                 = region
-      variable_group_name = "" # GitHub doesn't use variable groups
-      is_primary          = idx == 0
+      key                      = region
+      variable_group_name      = "" # GitHub doesn't use variable groups
+      is_primary               = idx == 0
+      service_connection_plan  = "" # GitHub doesn't use service connections
+      service_connection_apply = "" # GitHub doesn't use service connections
+      environment_plan         = local.multi_region_enabled ? "${local.resource_names_per_landing_zone[local.primary_landing_zone].version_control_system_environment_plan}-${region}" : local.resource_names_per_landing_zone[local.primary_landing_zone].version_control_system_environment_plan
+      environment_apply        = local.multi_region_enabled ? "${local.resource_names_per_landing_zone[local.primary_landing_zone].version_control_system_environment_apply}-${region}" : local.resource_names_per_landing_zone[local.primary_landing_zone].version_control_system_environment_apply
     }
   ]
 }

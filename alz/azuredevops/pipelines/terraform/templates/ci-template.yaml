@@ -47,7 +47,11 @@ stages:
         displayName: Validate Terraform Plan
         pool:
           ${agent_pool_or_runner_configuration}
+%{ if multi_region_enabled && primary_region != null ~}
+        environment: ${primary_region.environment_plan}
+%{ else ~}
         environment: ${environment_name_plan}
+%{ endif ~}
         timeoutInMinutes: 0
         strategy:
           runOnce:
@@ -60,12 +64,20 @@ stages:
                     terraformVersion: $${{ parameters.terraform_cli_version }}
                 - template: helpers/terraform-init.yaml
                   parameters:
+%{ if multi_region_enabled && primary_region != null ~}
+                    serviceConnection: '${primary_region.service_connection_plan}'
+%{ else ~}
                     serviceConnection: '${service_connection_name_plan}'
+%{ endif ~}
                     backendAzureResourceGroupName: $(BACKEND_AZURE_RESOURCE_GROUP_NAME)
                     backendAzureStorageAccountName: $(BACKEND_AZURE_STORAGE_ACCOUNT_NAME)
                     backendAzureStorageAccountContainerName: $(BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME)
                     root_module_folder_relative_path: $${{ parameters.root_module_folder_relative_path }}
                 - template: helpers/terraform-plan.yaml
                   parameters:
+%{ if multi_region_enabled && primary_region != null ~}
+                    serviceConnection: '${primary_region.service_connection_plan}'
+%{ else ~}
                     serviceConnection: '${service_connection_name_plan}'
+%{ endif ~}
                     root_module_folder_relative_path: $${{ parameters.root_module_folder_relative_path }}
