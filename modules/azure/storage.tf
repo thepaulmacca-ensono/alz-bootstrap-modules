@@ -5,7 +5,7 @@ resource "azurerm_storage_account" "alz" {
   resource_group_name             = azurerm_resource_group.state[each.key].name
   location                        = lookup(each.value, "location", var.azure_location)
   account_tier                    = "Standard"
-  account_replication_type        = var.storage_account_replication_type
+  account_replication_type        = local.storage_replication_type[each.key]
   allow_nested_items_to_be_public = false
   shared_access_key_enabled       = false
   default_to_oauth_authentication = true

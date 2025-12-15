@@ -18,11 +18,9 @@ data "http" "ip" {
 }
 
 module "regions" {
-  source                    = "Azure/avm-utl-regions/azurerm"
-  version                   = "0.5.2"
-  use_cached_data           = false
-  availability_zones_filter = false
-  recommended_filter        = false
+  source          = "Azure/avm-utl-regions/azurerm"
+  version         = "0.9.2"
+  use_cached_data = false
 }
 
 locals {
@@ -32,4 +30,11 @@ locals {
     }
   }
   bootstrap_location_zones = local.regions[var.azure_location].zones
+
+  # Auto-select optimal storage replication type per region based on zone availability
+  # ZRS requires 3+ availability zones, fallback to GRS for geo-redundancy otherwise
+  storage_replication_type = {
+    for region_key, config in var.storage_accounts : region_key =>
+      length(local.regions[lookup(config, "location", var.azure_location)].zones) >= 3 ? "ZRS" : "GRS"
+  }
 }

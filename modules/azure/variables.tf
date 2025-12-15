@@ -118,13 +118,17 @@ variable "storage_accounts" {
 
 variable "storage_account_replication_type" {
   description = <<-EOT
-    **(Optional, default: `"ZRS"`)** Replication strategy for the storage account.
+    **(Deprecated)** This variable is no longer used.
 
-    Valid values: LRS, GRS, RAGRS, ZRS, GZRS, RAGZRS.
-    ZRS recommended for production to ensure high availability across availability zones.
+    Storage account replication type is now automatically determined based on
+    region availability zone support using the avm-utl-regions module:
+    - Regions with 3+ availability zones: ZRS (zone-redundant)
+    - Regions without zone support: GRS (geo-redundant)
+
+    This variable will be removed in a future version.
   EOT
   type        = string
-  default     = "ZRS"
+  default     = null
 }
 
 variable "agent_container_instances" {
