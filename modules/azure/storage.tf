@@ -1,4 +1,4 @@
-# Per-region storage accounts
+# Per-landing-zone-per-region storage accounts
 resource "azurerm_storage_account" "alz" {
   for_each                        = var.create_storage_account ? var.storage_accounts : {}
   name                            = each.value.storage_account_name

@@ -22,14 +22,14 @@ module "resource_names_per_landing_zone" {
   resource_names        = merge(var.resource_names, local.custom_role_definitions_bicep_names, local.custom_role_definitions_terraform_names, local.custom_role_definitions_bicep_classic_names)
 }
 
-# Per-region resource names (for storage accounts keyed by region)
-module "resource_names_per_region" {
+# Per-landing-zone-per-region resource names (for storage accounts keyed by "lz-region")
+module "resource_names_per_landing_zone_region" {
   source   = "../../modules/resource_names"
-  for_each = toset(local.effective_regions)
+  for_each = local.landing_zone_region_combinations
 
-  azure_location        = each.key
-  environment_name      = lookup(local.landing_zone_short_names, local.primary_landing_zone, local.primary_landing_zone)
-  environment_name_long = local.primary_landing_zone
+  azure_location        = each.value.region
+  environment_name      = lookup(local.landing_zone_short_names, each.value.landing_zone, each.value.landing_zone)
+  environment_name_long = each.value.landing_zone
   service_name          = var.service_name
   postfix_number        = var.postfix_number
   resource_names        = merge(var.resource_names, local.custom_role_definitions_bicep_names, local.custom_role_definitions_terraform_names, local.custom_role_definitions_bicep_classic_names)

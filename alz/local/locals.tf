@@ -38,6 +38,18 @@ locals {
   # Whether multi-region deployment is enabled
   multi_region_enabled = length(local.effective_regions) > 1
 
+  # Landing zone + region combinations for per-LZ-per-region resources (e.g., storage accounts)
+  # Keys are "landing_zone-region" (e.g., "management-uksouth", "connectivity-ukwest")
+  landing_zone_region_combinations = merge([
+    for lz_name in local.effective_landing_zones : {
+      for region in local.effective_regions :
+      "${lz_name}-${region}" => {
+        landing_zone = lz_name
+        region       = region
+      }
+    }
+  ]...)
+
   # Regions list for script template generation
   # Local module doesn't use CI/CD pipelines, but still passes regions for consistency
   regions_for_templates = [
@@ -59,10 +71,11 @@ locals {
     lz_name => module.resource_names_per_landing_zone[lz_name].resource_names
   }
 
-  # Per-region resource names (for storage accounts)
-  resource_names_per_region = {
-    for region in local.effective_regions :
-    region => module.resource_names_per_region[region].resource_names
+  # Per-landing-zone-per-region resource names (for storage accounts)
+  # Keys are "landing_zone-region" (e.g., "management-uksouth", "connectivity-ukwest")
+  resource_names_per_landing_zone_region = {
+    for key, value in local.landing_zone_region_combinations :
+    key => module.resource_names_per_landing_zone_region[key].resource_names
   }
 }
 
@@ -106,15 +119,15 @@ locals {
     lz_name => local.resource_names_per_landing_zone[lz_name].resource_group_identity
   }
 
-  # Per-region storage accounts (one storage account per region, shared across all landing zones)
-  # Keys are region names (e.g., "uksouth", "ukwest")
+  # Per-landing-zone-per-region storage accounts
+  # Keys are "landing_zone-region" (e.g., "management-uksouth", "connectivity-ukwest")
   storage_accounts = {
-    for region in local.effective_regions :
-    region => {
-      resource_group_name  = local.resource_names_per_region[region].resource_group_state
-      storage_account_name = local.resource_names_per_region[region].storage_account
-      container_name       = local.resource_names_per_region[region].storage_container
-      location             = region
+    for key, value in local.landing_zone_region_combinations :
+    key => {
+      resource_group_name  = local.resource_names_per_landing_zone_region[key].resource_group_state
+      storage_account_name = local.resource_names_per_landing_zone_region[key].storage_account
+      container_name       = local.resource_names_per_landing_zone_region[key].storage_container
+      location             = value.region
     }
   }
 

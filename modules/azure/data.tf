@@ -35,6 +35,6 @@ locals {
   # ZRS requires 3+ availability zones, fallback to GRS for geo-redundancy otherwise
   storage_replication_type = {
     for region_key, config in var.storage_accounts : region_key =>
-      length(local.regions[lookup(config, "location", var.azure_location)].zones) >= 3 ? "ZRS" : "GRS"
+    length(local.regions[lookup(config, "location", var.azure_location)].zones) >= 3 ? "ZRS" : "GRS"
   }
 }
