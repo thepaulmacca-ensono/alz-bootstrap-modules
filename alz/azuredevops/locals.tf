@@ -52,16 +52,16 @@ locals {
 
   # Regions list for pipeline template generation
   # Uses primary landing zone's variable groups - each region maps to its variable group
-  # Includes per-region service connections and environments
+  # Service connections and environments are shared per-landing-zone (not per-region)
   regions_for_templates = [
     for idx, region in local.effective_regions : {
       key                      = region
       variable_group_name      = local.variable_groups["${local.primary_landing_zone}-${region}"].variable_group_name
       is_primary               = idx == 0
-      service_connection_plan  = local.environments_per_landing_zone_region["${local.primary_landing_zone}-${region}"][local.plan_key].service_connection_name
-      service_connection_apply = local.environments_per_landing_zone_region["${local.primary_landing_zone}-${region}"][local.apply_key].service_connection_name
-      environment_plan         = local.environments_per_landing_zone_region["${local.primary_landing_zone}-${region}"][local.plan_key].environment_name
-      environment_apply        = local.environments_per_landing_zone_region["${local.primary_landing_zone}-${region}"][local.apply_key].environment_name
+      service_connection_plan  = local.environments_per_landing_zone[local.primary_landing_zone][local.plan_key].service_connection_name
+      service_connection_apply = local.environments_per_landing_zone[local.primary_landing_zone][local.apply_key].service_connection_name
+      environment_plan         = local.environments_per_landing_zone[local.primary_landing_zone][local.plan_key].environment_name
+      environment_apply        = local.environments_per_landing_zone[local.primary_landing_zone][local.apply_key].environment_name
     }
   ]
 }
@@ -169,26 +169,8 @@ locals {
   }
 
   # Federated credentials - maps managed identity keys to their OIDC subjects/issuers
-  # For multi-region, we need a federated credential per region since each service connection has a unique subject
-  # But the managed identity is shared across regions, so we create multiple credentials per identity
-  federated_credentials = local.multi_region_enabled ? merge([
-    for lz_name in local.effective_landing_zones : merge([
-      for region in local.effective_regions : {
-        "${lz_name}-${region}-${local.plan_key}" = {
-          user_assigned_managed_identity_key = "${lz_name}-${local.plan_key}"
-          federated_credential_subject       = module.azure_devops.subjects["${lz_name}-${region}-${local.plan_key}"]
-          federated_credential_issuer        = module.azure_devops.issuers["${lz_name}-${region}-${local.plan_key}"]
-          federated_credential_name          = "${local.resource_names_per_landing_zone[lz_name].user_assigned_managed_identity_federated_credentials_plan}-${region}"
-        }
-        "${lz_name}-${region}-${local.apply_key}" = {
-          user_assigned_managed_identity_key = "${lz_name}-${local.apply_key}"
-          federated_credential_subject       = module.azure_devops.subjects["${lz_name}-${region}-${local.apply_key}"]
-          federated_credential_issuer        = module.azure_devops.issuers["${lz_name}-${region}-${local.apply_key}"]
-          federated_credential_name          = "${local.resource_names_per_landing_zone[lz_name].user_assigned_managed_identity_federated_credentials_apply}-${region}"
-        }
-      }
-    ]...)
-  ]...) : merge([
+  # One federated credential per managed identity (per-landing-zone), shared across regions
+  federated_credentials = merge([
     for lz_name in local.effective_landing_zones : {
       "${lz_name}-${local.plan_key}" = {
         user_assigned_managed_identity_key = "${lz_name}-${local.plan_key}"
@@ -227,30 +209,11 @@ locals {
   } : {}
 }
 
-# Per-landing-zone-per-region Azure DevOps environments configuration
-# Keys are "landing_zone-region" (e.g., "management-uksouth", "connectivity-ukwest")
+# Per-landing-zone Azure DevOps environments configuration
+# Environments and service connections are per-landing-zone (shared across regions)
+# Pipeline stages use the same service connection for all regional deployments
 locals {
-  environments_per_landing_zone_region = {
-    for key, value in local.landing_zone_region_combinations : key => {
-      (local.plan_key) = {
-        environment_name        = "${local.resource_names_per_landing_zone[value.landing_zone].version_control_system_environment_plan}-${value.region}"
-        service_connection_name = "${local.resource_names_per_landing_zone[value.landing_zone].version_control_system_service_connection_plan}-${value.region}"
-        service_connection_required_templates = [
-          "${local.target_folder_name}/${local.ci_template_file_name}",
-          "${local.target_folder_name}/${local.cd_template_file_name}"
-        ]
-      }
-      (local.apply_key) = {
-        environment_name        = "${local.resource_names_per_landing_zone[value.landing_zone].version_control_system_environment_apply}-${value.region}"
-        service_connection_name = "${local.resource_names_per_landing_zone[value.landing_zone].version_control_system_service_connection_apply}-${value.region}"
-        service_connection_required_templates = [
-          "${local.target_folder_name}/${local.cd_template_file_name}"
-        ]
-      }
-    }
-  }
-
-  # Legacy per-landing-zone environments (for single-region backwards compatibility)
+  # Per-landing-zone environments (shared across regions)
   environments_per_landing_zone = {
     for lz_name in local.effective_landing_zones : lz_name => {
       (local.plan_key) = {
@@ -272,34 +235,22 @@ locals {
   }
 
   # Per-landing-zone pipelines configuration
+  # For multi-region deployments, pipelines still have sequential regional stages,
+  # but they all use the same per-LZ service connections and environments
   pipelines_per_landing_zone = {
     for lz_name in local.effective_landing_zones : lz_name => merge(
       {
         ci = {
-          pipeline_name      = local.resource_names_per_landing_zone[lz_name].version_control_system_pipeline_name_ci
-          pipeline_file_name = "${local.target_folder_name}/${local.ci_file_name}"
-          environment_keys = local.multi_region_enabled ? [
-            for region in local.effective_regions : "${region}-${local.plan_key}"
-          ] : [local.plan_key]
-          service_connection_keys = local.multi_region_enabled ? [
-            for region in local.effective_regions : "${region}-${local.plan_key}"
-          ] : [local.plan_key]
+          pipeline_name           = local.resource_names_per_landing_zone[lz_name].version_control_system_pipeline_name_ci
+          pipeline_file_name      = "${local.target_folder_name}/${local.ci_file_name}"
+          environment_keys        = [local.plan_key]
+          service_connection_keys = [local.plan_key]
         }
         cd = {
-          pipeline_name      = local.resource_names_per_landing_zone[lz_name].version_control_system_pipeline_name_cd
-          pipeline_file_name = "${local.target_folder_name}/${local.cd_file_name}"
-          environment_keys = local.multi_region_enabled ? flatten([
-            for region in local.effective_regions : [
-              "${region}-${local.plan_key}",
-              "${region}-${local.apply_key}"
-            ]
-          ]) : [local.plan_key, local.apply_key]
-          service_connection_keys = local.multi_region_enabled ? flatten([
-            for region in local.effective_regions : [
-              "${region}-${local.plan_key}",
-              "${region}-${local.apply_key}"
-            ]
-          ]) : [local.plan_key, local.apply_key]
+          pipeline_name           = local.resource_names_per_landing_zone[lz_name].version_control_system_pipeline_name_cd
+          pipeline_file_name      = "${local.target_folder_name}/${local.cd_file_name}"
+          environment_keys        = [local.plan_key, local.apply_key]
+          service_connection_keys = [local.plan_key, local.apply_key]
         }
       },
       var.enable_renovate ? {
@@ -321,45 +272,14 @@ locals {
     }
   }
 
-  # Per-landing-zone-per-region managed identity client IDs map
-  # Keys are "region-plan" / "region-apply" to support multi-region deployments
-  managed_identity_client_ids_per_landing_zone_region = {
-    for lz_name in local.effective_landing_zones : lz_name => merge([
-      for region in local.effective_regions : {
-        "${region}-${local.plan_key}"  = module.azure.user_assigned_managed_identity_client_ids["${lz_name}-${local.plan_key}"]
-        "${region}-${local.apply_key}" = module.azure.user_assigned_managed_identity_client_ids["${lz_name}-${local.apply_key}"]
-      }
-    ]...)
-  }
-
-  # Flattened environments per landing zone (includes per-region when multi-region enabled)
-  # Single-region: keys are "plan", "apply"
-  # Multi-region: keys are "uksouth-plan", "ukwest-apply", etc.
-  flattened_environments_per_landing_zone = {
-    for lz_name in local.effective_landing_zones : lz_name => local.multi_region_enabled ? merge([
-      for region in local.effective_regions : {
-        "${region}-${local.plan_key}" = {
-          environment_name                      = local.environments_per_landing_zone_region["${lz_name}-${region}"][local.plan_key].environment_name
-          service_connection_name               = local.environments_per_landing_zone_region["${lz_name}-${region}"][local.plan_key].service_connection_name
-          service_connection_required_templates = local.environments_per_landing_zone_region["${lz_name}-${region}"][local.plan_key].service_connection_required_templates
-        }
-        "${region}-${local.apply_key}" = {
-          environment_name                      = local.environments_per_landing_zone_region["${lz_name}-${region}"][local.apply_key].environment_name
-          service_connection_name               = local.environments_per_landing_zone_region["${lz_name}-${region}"][local.apply_key].service_connection_name
-          service_connection_required_templates = local.environments_per_landing_zone_region["${lz_name}-${region}"][local.apply_key].service_connection_required_templates
-        }
-      }
-    ]...) : local.environments_per_landing_zone[lz_name]
-  }
-
   # Multi-landing-zone repositories map for azure_devops module
   repositories = {
     for lz_name in local.effective_landing_zones : lz_name => {
       repository_name             = local.resource_names_per_landing_zone[lz_name].version_control_system_repository
       repository_files            = module.file_manipulation.repository_files # TODO: Per-landing-zone files
-      environments                = local.flattened_environments_per_landing_zone[lz_name]
+      environments                = local.environments_per_landing_zone[lz_name]
       pipelines                   = local.pipelines_per_landing_zone[lz_name]
-      managed_identity_client_ids = local.multi_region_enabled ? local.managed_identity_client_ids_per_landing_zone_region[lz_name] : local.managed_identity_client_ids_per_landing_zone[lz_name]
+      managed_identity_client_ids = local.managed_identity_client_ids_per_landing_zone[lz_name]
       storage_container_name      = local.resource_names_per_landing_zone[lz_name].storage_container
     }
   }
