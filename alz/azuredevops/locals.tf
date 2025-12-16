@@ -169,7 +169,26 @@ locals {
   }
 
   # Federated credentials - maps managed identity keys to their OIDC subjects/issuers
-  federated_credentials = merge([
+  # For multi-region, we need a federated credential per region since each service connection has a unique subject
+  # But the managed identity is shared across regions, so we create multiple credentials per identity
+  federated_credentials = local.multi_region_enabled ? merge([
+    for lz_name in local.effective_landing_zones : merge([
+      for region in local.effective_regions : {
+        "${lz_name}-${region}-${local.plan_key}" = {
+          user_assigned_managed_identity_key = "${lz_name}-${local.plan_key}"
+          federated_credential_subject       = module.azure_devops.subjects["${lz_name}-${region}-${local.plan_key}"]
+          federated_credential_issuer        = module.azure_devops.issuers["${lz_name}-${region}-${local.plan_key}"]
+          federated_credential_name          = "${local.resource_names_per_landing_zone[lz_name].user_assigned_managed_identity_federated_credentials_plan}-${region}"
+        }
+        "${lz_name}-${region}-${local.apply_key}" = {
+          user_assigned_managed_identity_key = "${lz_name}-${local.apply_key}"
+          federated_credential_subject       = module.azure_devops.subjects["${lz_name}-${region}-${local.apply_key}"]
+          federated_credential_issuer        = module.azure_devops.issuers["${lz_name}-${region}-${local.apply_key}"]
+          federated_credential_name          = "${local.resource_names_per_landing_zone[lz_name].user_assigned_managed_identity_federated_credentials_apply}-${region}"
+        }
+      }
+    ]...)
+  ]...) : merge([
     for lz_name in local.effective_landing_zones : {
       "${lz_name}-${local.plan_key}" = {
         user_assigned_managed_identity_key = "${lz_name}-${local.plan_key}"
@@ -259,24 +278,28 @@ locals {
         ci = {
           pipeline_name      = local.resource_names_per_landing_zone[lz_name].version_control_system_pipeline_name_ci
           pipeline_file_name = "${local.target_folder_name}/${local.ci_file_name}"
-          environment_keys = [
-            local.plan_key
-          ]
-          service_connection_keys = [
-            local.plan_key
-          ]
+          environment_keys = local.multi_region_enabled ? [
+            for region in local.effective_regions : "${region}-${local.plan_key}"
+          ] : [local.plan_key]
+          service_connection_keys = local.multi_region_enabled ? [
+            for region in local.effective_regions : "${region}-${local.plan_key}"
+          ] : [local.plan_key]
         }
         cd = {
           pipeline_name      = local.resource_names_per_landing_zone[lz_name].version_control_system_pipeline_name_cd
           pipeline_file_name = "${local.target_folder_name}/${local.cd_file_name}"
-          environment_keys = [
-            local.plan_key,
-            local.apply_key
-          ]
-          service_connection_keys = [
-            local.plan_key,
-            local.apply_key
-          ]
+          environment_keys = local.multi_region_enabled ? flatten([
+            for region in local.effective_regions : [
+              "${region}-${local.plan_key}",
+              "${region}-${local.apply_key}"
+            ]
+          ]) : [local.plan_key, local.apply_key]
+          service_connection_keys = local.multi_region_enabled ? flatten([
+            for region in local.effective_regions : [
+              "${region}-${local.plan_key}",
+              "${region}-${local.apply_key}"
+            ]
+          ]) : [local.plan_key, local.apply_key]
         }
       },
       var.enable_renovate ? {
