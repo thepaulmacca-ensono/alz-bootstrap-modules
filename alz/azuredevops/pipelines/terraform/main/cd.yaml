@@ -32,12 +32,12 @@ extends:
     root_module_folder_relative_path: ${root_module_folder_relative_path}
     terraform_cli_version: $${{ coalesce(parameters.terraform_cli_version, 'latest') }}
 %{ if multi_region_enabled ~}
+    environment_name_plan: ${regions[0].environment_plan}
+    environment_name_apply: ${regions[0].environment_apply}
+    service_connection_name_plan: ${regions[0].service_connection_plan}
+    service_connection_name_apply: ${regions[0].service_connection_apply}
 %{ for region in regions ~}
     variable_group_name_${region.key}: ${region.variable_group_name}
-    environment_name_plan_${region.key}: ${region.environment_plan}
-    environment_name_apply_${region.key}: ${region.environment_apply}
-    service_connection_name_plan_${region.key}: ${region.service_connection_plan}
-    service_connection_name_apply_${region.key}: ${region.service_connection_apply}
 %{ endfor ~}
 %{ else ~}
     variable_group_name: ${variable_group_name}

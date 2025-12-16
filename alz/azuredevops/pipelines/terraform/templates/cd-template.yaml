@@ -7,16 +7,16 @@ parameters:
   - name: terraform_cli_version
     default: 'latest'
 %{ if multi_region_enabled ~}
+  - name: environment_name_plan
+    type: string
+  - name: environment_name_apply
+    type: string
+  - name: service_connection_name_plan
+    type: string
+  - name: service_connection_name_apply
+    type: string
 %{ for region in regions ~}
   - name: variable_group_name_${region.key}
-    type: string
-  - name: environment_name_plan_${region.key}
-    type: string
-  - name: environment_name_apply_${region.key}
-    type: string
-  - name: service_connection_name_plan_${region.key}
-    type: string
-  - name: service_connection_name_apply_${region.key}
     type: string
 %{ endfor ~}
 %{ else ~}
@@ -35,6 +35,7 @@ parameters:
 stages:
 %{ if multi_region_enabled ~}
 # Multi-region deployment: generate plan/apply stages per region
+# Service connections and environments are shared, only variable groups differ per region
 %{ for region in regions ~}
   - stage: plan_${region.key}
     displayName: Plan (${region.key})
@@ -50,7 +51,7 @@ stages:
         displayName: Plan with Terraform
         pool:
           ${agent_pool_or_runner_configuration}
-        environment: $${{ parameters.environment_name_plan_${region.key} }}
+        environment: $${{ parameters.environment_name_plan }}
         timeoutInMinutes: 0
         strategy:
           runOnce:
@@ -65,7 +66,7 @@ stages:
 
                 - template: helpers/terraform-init.yaml
                   parameters:
-                    serviceConnection: $${{ parameters.service_connection_name_plan_${region.key} }}
+                    serviceConnection: $${{ parameters.service_connection_name_plan }}
                     backendAzureResourceGroupName: $(BACKEND_AZURE_RESOURCE_GROUP_NAME)
                     backendAzureStorageAccountName: $(BACKEND_AZURE_STORAGE_ACCOUNT_NAME)
                     backendAzureStorageAccountContainerName: $(BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME)
@@ -74,7 +75,7 @@ stages:
                 - template: helpers/terraform-plan.yaml
                   parameters:
                     terraform_action: $${{ parameters.terraform_action }}
-                    serviceConnection: $${{ parameters.service_connection_name_plan_${region.key} }}
+                    serviceConnection: $${{ parameters.service_connection_name_plan }}
                     root_module_folder_relative_path: $${{ parameters.root_module_folder_relative_path }}
 
                 - task: CopyFiles@2
@@ -119,7 +120,7 @@ stages:
         displayName: Apply with Terraform
         pool:
           ${agent_pool_or_runner_configuration}
-        environment: $${{ parameters.environment_name_apply_${region.key} }}
+        environment: $${{ parameters.environment_name_apply }}
         timeoutInMinutes: 0
         strategy:
           runOnce:
@@ -140,7 +141,7 @@ stages:
 
                 - template: helpers/terraform-init.yaml
                   parameters:
-                    serviceConnection: $${{ parameters.service_connection_name_apply_${region.key} }}
+                    serviceConnection: $${{ parameters.service_connection_name_apply }}
                     backendAzureResourceGroupName: $(BACKEND_AZURE_RESOURCE_GROUP_NAME)
                     backendAzureStorageAccountName: $(BACKEND_AZURE_STORAGE_ACCOUNT_NAME)
                     backendAzureStorageAccountContainerName: $(BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME)
@@ -149,7 +150,7 @@ stages:
                 - template: helpers/terraform-apply.yaml
                   parameters:
                     terraform_action: $${{ parameters.terraform_action }}
-                    serviceConnection: $${{ parameters.service_connection_name_apply_${region.key} }}
+                    serviceConnection: $${{ parameters.service_connection_name_apply }}
                     root_module_folder_relative_path: $${{ parameters.root_module_folder_relative_path }}
 
 %{ endfor ~}
