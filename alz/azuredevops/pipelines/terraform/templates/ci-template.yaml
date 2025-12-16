@@ -4,16 +4,18 @@ parameters:
     default: '.'
   - name: terraform_cli_version
     default: 'latest'
+  - name: variable_group_name
+    type: string
+  - name: environment_name_plan
+    type: string
+  - name: service_connection_name_plan
+    type: string
 
 stages:
   - stage: validate
     displayName: Validation Terraform
     variables:
-%{ if multi_region_enabled && primary_region != null ~}
-      - group: ${primary_region.variable_group_name}
-%{ else ~}
-      - group: ${variable_group_name}
-%{ endif ~}
+      - group: $${{ parameters.variable_group_name }}
       - name: 'selfHostedAgent'
         value: '${self_hosted_agent}'
     jobs:
@@ -25,33 +27,33 @@ stages:
           - template: helpers/terraform-installer.yaml
             parameters:
               terraformVersion: $${{ parameters.terraform_cli_version }}
+
           - pwsh: |
               terraform `
               -chdir="$${{ parameters.root_module_folder_relative_path }}" `
               fmt `
               -check
             displayName: Terraform Format Check
+
           - pwsh: |
               terraform `
               -chdir="$${{ parameters.root_module_folder_relative_path }}" `
               init `
               -backend=false
             displayName: Terraform Init
+
           - pwsh: |
               terraform `
               -chdir="$${{ parameters.root_module_folder_relative_path }}" `
               validate
             displayName: Terraform Validate
+
       - deployment: plan
         dependsOn: validate
         displayName: Validate Terraform Plan
         pool:
           ${agent_pool_or_runner_configuration}
-%{ if multi_region_enabled && primary_region != null ~}
-        environment: ${primary_region.environment_plan}
-%{ else ~}
-        environment: ${environment_name_plan}
-%{ endif ~}
+        environment: $${{ parameters.environment_name_plan }}
         timeoutInMinutes: 0
         strategy:
           runOnce:
@@ -59,25 +61,20 @@ stages:
               steps:
                 - checkout: self
                   displayName: Checkout Terraform Module
+
                 - template: helpers/terraform-installer.yaml
                   parameters:
                     terraformVersion: $${{ parameters.terraform_cli_version }}
+
                 - template: helpers/terraform-init.yaml
                   parameters:
-%{ if multi_region_enabled && primary_region != null ~}
-                    serviceConnection: '${primary_region.service_connection_plan}'
-%{ else ~}
-                    serviceConnection: '${service_connection_name_plan}'
-%{ endif ~}
+                    serviceConnection: $${{ parameters.service_connection_name_plan }}
                     backendAzureResourceGroupName: $(BACKEND_AZURE_RESOURCE_GROUP_NAME)
                     backendAzureStorageAccountName: $(BACKEND_AZURE_STORAGE_ACCOUNT_NAME)
                     backendAzureStorageAccountContainerName: $(BACKEND_AZURE_STORAGE_ACCOUNT_CONTAINER_NAME)
                     root_module_folder_relative_path: $${{ parameters.root_module_folder_relative_path }}
+
                 - template: helpers/terraform-plan.yaml
                   parameters:
-%{ if multi_region_enabled && primary_region != null ~}
-                    serviceConnection: '${primary_region.service_connection_plan}'
-%{ else ~}
-                    serviceConnection: '${service_connection_name_plan}'
-%{ endif ~}
+                    serviceConnection: $${{ parameters.service_connection_name_plan }}
                     root_module_folder_relative_path: $${{ parameters.root_module_folder_relative_path }}

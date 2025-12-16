@@ -21,3 +21,12 @@ extends:
   parameters:
     root_module_folder_relative_path: ${root_module_folder_relative_path}
     terraform_cli_version: $${{ coalesce(parameters.terraform_cli_version, 'latest') }}
+%{ if multi_region_enabled && primary_region != null ~}
+    variable_group_name: '${primary_region.variable_group_name}'
+    environment_name_plan: '${primary_region.environment_plan}'
+    service_connection_name_plan: '${primary_region.service_connection_plan}'
+%{ else ~}
+    variable_group_name: '${variable_group_name}'
+    environment_name_plan: '${environment_name_plan}'
+    service_connection_name_plan: '${service_connection_name_plan}'
+%{ endif ~}
