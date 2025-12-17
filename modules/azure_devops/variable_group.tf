@@ -3,7 +3,7 @@ resource "azuredevops_variable_group" "alz" {
   for_each     = var.variable_groups
   project_id   = local.project_id
   name         = each.value.variable_group_name
-  description  = each.value.variable_group_name
+  description  = "Terraform variables scoped to ${each.value.variable_group_name}"
   allow_access = true
 
   variable {
