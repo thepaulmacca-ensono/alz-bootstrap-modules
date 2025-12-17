@@ -103,7 +103,7 @@ module "azure_devops" {
   create_project              = var.azure_devops_create_project
   project_name                = var.azure_devops_project_name
   repositories                = local.repositories
-  template_repository_files   = module.file_manipulation.template_repository_files
+  template_repository_files   = module.file_manipulation[local.primary_landing_zone].template_repository_files
   use_template_repository     = var.use_separate_repository_for_templates
   repository_name_templates   = local.resource_names.version_control_system_repository_templates
   variable_groups             = local.variable_groups

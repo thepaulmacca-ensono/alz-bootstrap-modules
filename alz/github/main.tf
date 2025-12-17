@@ -106,8 +106,8 @@ module "github" {
   repositories                                 = local.repositories
   use_template_repository                      = var.use_separate_repository_for_templates
   repository_name_templates                    = local.resource_names.version_control_system_repository_templates
-  repository_files                             = module.file_manipulation.repository_files
-  template_repository_files                    = module.file_manipulation.template_repository_files
+  repository_files                             = { for k, v in module.file_manipulation : k => v.repository_files }
+  template_repository_files                    = module.file_manipulation[local.primary_landing_zone].template_repository_files
   workflows                                    = local.workflows
   managed_identity_client_ids                  = module.azure.user_assigned_managed_identity_client_ids
   azure_tenant_id                              = data.azurerm_client_config.current.tenant_id
