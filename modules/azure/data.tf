@@ -25,11 +25,13 @@ module "regions" {
 
 locals {
   regions = { for region in module.regions.regions_by_name : region.name => {
-    display_name = region.display_name
-    zones        = region.zones == null ? [] : region.zones
+    display_name       = region.display_name
+    paired_region_name = region.paired_region_name
+    zones              = region.zones == null ? [] : region.zones
     }
   }
-  bootstrap_location_zones = local.regions[var.azure_location].zones
+  bootstrap_location_zones       = local.regions[var.azure_location].zones
+  bootstrap_location_paired_name = local.regions[var.azure_location].paired_region_name
 
   # Auto-select optimal storage replication type per region based on zone availability
   # ZRS requires 3+ availability zones, fallback to GRS for geo-redundancy otherwise

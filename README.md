@@ -7,13 +7,11 @@ This repository contains the Terraform modules that are used to deploy the accel
 
 ## Supported Infrastructure as Code (IaC) Types
 
-This bootstrap framework supports multiple Infrastructure as Code approaches:
+This bootstrap framework supports Terraform-based Azure Landing Zones:
 
 | IaC Type | Description | Repository |
 |----------|-------------|------------|
 | **terraform** | Terraform-based Azure Landing Zones | [alz-terraform-accelerator](https://github.com/Azure/alz-terraform-accelerator) |
-| **bicep** | Bicep-based Azure Landing Zones (New Framework using Azure Verified Modules) | [alz-bicep-accelerator](https://github.com/Azure/alz-bicep-accelerator) |
-| **bicep-classic** | Bicep-based Azure Landing Zones (Classic Framework) | [ALZ-Bicep](https://github.com/Azure/ALZ-Bicep) |
 
 ## Configuration
 

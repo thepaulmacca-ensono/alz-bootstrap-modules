@@ -7,11 +7,6 @@ locals {
   pipeline_files          = var.pipeline_files_directory_path == null ? [] : fileset(var.pipeline_files_directory_path, "**/*.*")
   pipeline_template_files = var.pipeline_template_files_directory_path == null ? [] : fileset(var.pipeline_template_files_directory_path, "**/*.*")
 
-  # Select config file based on IAC type
-  starter_module_config = local.is_bicep_iac_type ? jsondecode(file("${var.module_folder_path}/${var.bicep_config_file_path}")).starter_modules[var.starter_module_name] : null
-  script_files_all      = local.is_bicep_iac_type ? local.starter_module_config.deployment_files : []
-  destroy_script_path   = local.is_bicep_iac_type ? local.starter_module_config.destroy_script_path : ""
-
   templated_files = {
     main_files = {
       source_directory_path = var.pipeline_files_directory_path
@@ -39,15 +34,9 @@ locals {
         service_connection_name_plan       = local.is_azuredevops ? var.resource_names.version_control_system_service_connection_plan : ""
         service_connection_name_apply      = local.is_azuredevops ? var.resource_names.version_control_system_service_connection_apply : ""
         self_hosted_agent                  = var.use_self_hosted_agents_runners
-        script_files                       = local.script_files
-        destroy_script_path                = local.destroy_script_path
-        on_demand_folders                  = local.on_demand_folders
-        on_demand_folder_repository        = var.on_demand_folder_repository
-        on_demand_folder_artifact_name     = var.on_demand_folder_artifact_name
         concurrency_value                  = var.concurrency_value
         ci_template_path                   = "${var.pipeline_target_folder_name}/${coalesce(var.ci_template_file_name, "empty")}"
         cd_template_path                   = "${var.pipeline_target_folder_name}/${coalesce(var.cd_template_file_name, "empty")}"
-        script_file_groups                 = local.script_file_groups
         root_module_folder_relative_path   = var.root_module_folder_relative_path
         # Multi-region support
         regions              = var.regions
@@ -67,17 +56,9 @@ locals {
   }
 
   # Build a map of module files with types that are supported
-  module_files_supported = { for key, value in local.module_files : key => value if value.content != "unsupported_file_type" && !endswith(key, "-cache.json") && !endswith(key, var.bicep_config_file_path) }
-
-  # Build a list of files to exclude from the repository based on the on-demand folders
-  excluded_module_files = distinct(flatten([for exclusion in local.on_demand_folders :
-    [for key, value in local.module_files_supported : key if startswith(key, exclusion.target)]
-  ]))
-
-  # Filter out the excluded files
-  module_files_filtered = { for key, value in local.module_files_supported : key => value if !contains(local.excluded_module_files, key) }
+  module_files_supported = { for key, value in local.module_files : key => value if value.content != "unsupported_file_type" && !endswith(key, "-cache.json") }
 
   # Create final maps of all files to be included in the repositories
-  repository_files          = merge(local.templated_files_final.main_files, local.module_files_filtered, local.use_separate_repository_for_templates ? {} : local.templated_files_final.template_files, local.bicep_module_files_templated, local.dependency_management_files, local.pull_request_template_files)
+  repository_files          = merge(local.templated_files_final.main_files, local.module_files_supported, local.use_separate_repository_for_templates ? {} : local.templated_files_final.template_files, local.dependency_management_files, local.pull_request_template_files)
   template_repository_files = local.use_separate_repository_for_templates ? local.templated_files_final.template_files : {}
 }

@@ -6,7 +6,7 @@ module "resource_names" {
   environment_name_long = local.primary_landing_zone
   service_name          = var.service_name
   postfix_number        = var.postfix_number
-  resource_names        = merge(var.resource_names, local.custom_role_definitions_bicep_names, local.custom_role_definitions_terraform_names, local.custom_role_definitions_bicep_classic_names)
+  resource_names        = merge(var.resource_names, local.custom_role_definitions_terraform_names)
 }
 
 # Per-landing-zone resource names (uses primary region)
@@ -19,7 +19,7 @@ module "resource_names_per_landing_zone" {
   environment_name_long = each.key
   service_name          = var.service_name
   postfix_number        = var.postfix_number
-  resource_names        = merge(var.resource_names, local.custom_role_definitions_bicep_names, local.custom_role_definitions_terraform_names, local.custom_role_definitions_bicep_classic_names)
+  resource_names        = merge(var.resource_names, local.custom_role_definitions_terraform_names)
 }
 
 # Per-landing-zone-per-region resource names (for storage accounts keyed by "lz-region")
@@ -32,7 +32,7 @@ module "resource_names_per_landing_zone_region" {
   environment_name_long = each.value.landing_zone
   service_name          = var.service_name
   postfix_number        = var.postfix_number
-  resource_names        = merge(var.resource_names, local.custom_role_definitions_bicep_names, local.custom_role_definitions_terraform_names, local.custom_role_definitions_bicep_classic_names)
+  resource_names        = merge(var.resource_names, local.custom_role_definitions_terraform_names)
 }
 
 module "files" {
@@ -49,7 +49,7 @@ module "azure" {
   resource_group_identity_names                             = local.resource_group_identity_names
   resource_group_agents_name                                = local.resource_names.resource_group_agents
   resource_group_network_name                               = local.resource_names.resource_group_network
-  create_storage_account                                    = var.iac_type == local.iac_terraform
+  create_storage_account                                    = true
   storage_accounts                                          = local.storage_accounts
   azure_location                                            = local.primary_region
   user_assigned_managed_identities                          = local.managed_identities
@@ -84,16 +84,16 @@ module "azure" {
   container_registry_image_tag                              = var.agent_container_image_tag
   container_registry_dockerfile_name                        = var.agent_container_image_dockerfile
   container_registry_dockerfile_repository_folder_url       = local.agent_container_instance_dockerfile_url
-  custom_role_definitions                                   = var.iac_type == "terraform" ? local.custom_role_definitions_terraform : (var.iac_type == "bicep" ? local.custom_role_definitions_bicep : local.custom_role_definitions_bicep_classic)
-  role_assignments                                          = local.role_assignments_effective
+  custom_role_definitions                                   = local.custom_role_definitions_terraform
+  role_assignments                                          = local.role_assignments_terraform_expanded
   storage_account_blob_soft_delete_enabled                  = var.storage_account_blob_soft_delete_enabled
   storage_account_blob_soft_delete_retention_days           = var.storage_account_blob_soft_delete_retention_days
   storage_account_blob_versioning_enabled                   = var.storage_account_blob_versioning_enabled
   resource_group_lock_enabled                               = var.resource_group_lock_enabled
   storage_account_container_soft_delete_enabled             = var.storage_account_container_soft_delete_enabled
   storage_account_container_soft_delete_retention_days      = var.storage_account_container_soft_delete_retention_days
-  tenant_role_assignment_enabled                            = var.iac_type == "bicep" && var.bicep_tenant_role_assignment_enabled
-  tenant_role_assignment_role_definition_name               = var.bicep_tenant_role_assignment_role_definition_name
+  tenant_role_assignment_enabled                            = false
+  tenant_role_assignment_role_definition_name               = ""
 }
 
 module "azure_devops" {
@@ -119,23 +119,19 @@ module "azure_devops" {
 
 module "file_manipulation" {
   source                                 = "../../modules/file_manipulation"
+  for_each                               = toset(local.effective_landing_zones)
   vcs_type                               = "azuredevops"
   files                                  = module.files.files
   use_self_hosted_agents_runners         = var.use_self_hosted_agents
   resource_names                         = local.resource_names
   use_separate_repository_for_templates  = var.use_separate_repository_for_templates
-  iac_type                               = var.iac_type
   module_folder_path                     = local.starter_module_folder_path
-  bicep_config_file_path                 = var.bicep_config_file_path
-  starter_module_name                    = var.starter_module_name
+  starter_module_name                    = local.starter_module_names_per_landing_zone[each.key]
   project_or_organization_name           = var.azure_devops_project_name
   root_module_folder_relative_path       = var.root_module_folder_relative_path
-  on_demand_folder_repository            = var.on_demand_folder_repository
-  on_demand_folder_artifact_name         = var.on_demand_folder_artifact_name
   ci_template_file_name                  = local.ci_template_file_name
   cd_template_file_name                  = local.cd_template_file_name
   pipeline_target_folder_name            = local.target_folder_name
-  bicep_parameters_file_path             = var.bicep_parameters_file_path
   subscription_ids                       = var.subscription_ids
   root_parent_management_group_id        = var.root_parent_management_group_id
   agent_pool_or_runner_configuration     = local.agent_pool_or_runner_configuration

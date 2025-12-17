@@ -63,6 +63,16 @@ locals {
       environment_apply        = "" # Local doesn't use environments
     }
   ]
+
+  # Per-landing-zone starter module names
+  # Allows each landing zone to use a different starter module (e.g., management uses platform_landing_zone, connectivity uses hubnetworking)
+  starter_module_names_per_landing_zone = {
+    for lz_name in local.effective_landing_zones :
+    lz_name => coalesce(
+      try(var.landing_zones[lz_name].starter_module_name, null),
+      var.starter_module_name
+    )
+  }
 }
 
 # Resource Name Setup
@@ -85,10 +95,6 @@ locals {
 
 locals {
   root_parent_management_group_id = var.root_parent_management_group_id == "" ? data.azurerm_client_config.current.tenant_id : var.root_parent_management_group_id
-}
-
-locals {
-  iac_terraform = "terraform"
 }
 
 locals {
@@ -145,34 +151,35 @@ locals {
 locals {
   target_directory          = var.target_directory == "" ? ("${path.module}/${var.default_target_directory}") : var.target_directory
   script_target_folder_name = "scripts"
-  script_source_folder_name = var.iac_type == "bicep" ? "scripts-bicep" : (var.iac_type == "bicep-classic" ? "scripts" : null)
-  script_source_folder_path = local.script_source_folder_name == null ? null : "${path.module}/${local.script_source_folder_name}"
+
+  # Combine all repository files across landing zones for local file creation
+  # For single landing zone: files go directly to target_directory (backwards compatible)
+  # For multiple landing zones: each landing zone gets its own subdirectory (e.g., target_directory/management/)
+  all_repository_files = length(local.effective_landing_zones) == 1 ? {
+    # Single landing zone - flat structure for backwards compatibility
+    for file_key, file_value in module.file_manipulation[local.primary_landing_zone].repository_files :
+    file_key => {
+      content  = file_value.content
+      filename = "${local.target_directory}/${file_key}"
+    }
+    } : merge([
+      # Multiple landing zones - each in its own subdirectory
+      for lz_name in local.effective_landing_zones : {
+        for file_key, file_value in module.file_manipulation[lz_name].repository_files :
+        "${lz_name}/${file_key}" => {
+          content  = file_value.content
+          filename = "${local.target_directory}/${lz_name}/${file_key}"
+        }
+      }
+  ]...)
 }
 
 locals {
-  custom_role_definitions_bicep_names         = { for key, value in var.custom_role_definitions_bicep : "custom_role_definition_bicep_${key}" => value.name }
-  custom_role_definitions_terraform_names     = { for key, value in var.custom_role_definitions_terraform : "custom_role_definition_terraform_${key}" => value.name }
-  custom_role_definitions_bicep_classic_names = { for key, value in var.custom_role_definitions_bicep_classic : "custom_role_definition_bicep_classic_${key}" => value.name }
-
-  custom_role_definitions_bicep = {
-    for key, value in var.custom_role_definitions_bicep : key => {
-      name        = local.resource_names["custom_role_definition_bicep_${key}"]
-      description = value.description
-      permissions = value.permissions
-    }
-  }
+  custom_role_definitions_terraform_names = { for key, value in var.custom_role_definitions_terraform : "custom_role_definition_terraform_${key}" => value.name }
 
   custom_role_definitions_terraform = {
     for key, value in var.custom_role_definitions_terraform : key => {
       name        = local.resource_names["custom_role_definition_terraform_${key}"]
-      description = value.description
-      permissions = value.permissions
-    }
-  }
-
-  custom_role_definitions_bicep_classic = {
-    for key, value in var.custom_role_definitions_bicep_classic : key => {
-      name        = local.resource_names["custom_role_definition_bicep_classic_${key}"]
       description = value.description
       permissions = value.permissions
     }

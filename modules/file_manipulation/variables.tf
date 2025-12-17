@@ -61,35 +61,11 @@ variable "use_separate_repository_for_templates" {
   default     = null
 }
 
-variable "iac_type" {
-  description = <<-EOT
-    **(Required)** Infrastructure as Code framework type that determines which deployment approach and file transformations to apply.
-
-    Valid values:
-    - `terraform` - HashiCorp Terraform
-    - `bicep` - Azure Bicep with AVM
-    - `bicep-classic` - Traditional Bicep deployment
-
-    Affects generated scripts, configuration files, and pipeline stages.
-  EOT
-  type        = string
-}
-
 variable "module_folder_path" {
   description = <<-EOT
     **(Required)** Absolute or relative path to the starter module folder containing source Azure Landing Zones configuration templates and files.
 
     This path is used to locate and read files for processing and transformation.
-  EOT
-  type        = string
-}
-
-variable "bicep_config_file_path" {
-  description = <<-EOT
-    **(Required)** Relative path to the Bicep configuration file within the generated repository structure.
-
-    This JSON file contains deployment settings for the Azure Landing Zones Bicep accelerator
-    and is referenced in deployment scripts and pipelines.
   EOT
   type        = string
 }
@@ -117,40 +93,10 @@ variable "project_or_organization_name" {
 
 variable "root_module_folder_relative_path" {
   description = <<-EOT
-    **(Required)** Relative path from the repository root to the folder containing the main Terraform or Bicep entry point.
+    **(Required)** Relative path from the repository root to the folder containing the main Terraform entry point.
 
-    Used in workflow/pipeline files to set the working directory for IaC operations.
+    Used in workflow/pipeline files to set the working directory for Terraform operations.
     Typically '.' for root-level deployments.
-  EOT
-  type        = string
-}
-
-variable "on_demand_folder_repository" {
-  description = <<-EOT
-    **(Required)** Git repository URL containing additional on-demand Azure Landing Zones configuration folders.
-
-    Examples: industry-specific templates, custom policies.
-    Used in scripts to dynamically fetch supplementary configurations during deployment.
-  EOT
-  type        = string
-}
-
-variable "on_demand_folder_artifact_name" {
-  description = <<-EOT
-    **(Required)** Branch name or tag in the on-demand folder repository to retrieve.
-
-    Allows pinning to specific versions of supplementary configurations.
-    Used in scripts that fetch on-demand folders during deployment.
-  EOT
-  type        = string
-}
-
-variable "bicep_parameters_file_path" {
-  description = <<-EOT
-    **(Required)** Relative path to the Bicep parameters JSON file containing deployment input values.
-
-    This file is referenced in Bicep deployment scripts and pipelines to provide configuration values
-    for the Azure Landing Zones resources.
   EOT
   type        = string
 }

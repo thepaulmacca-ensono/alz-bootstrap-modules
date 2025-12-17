@@ -12,7 +12,7 @@ variable "user_assigned_managed_identities" {
   description = <<-EOT
     **(Required)** Map of user-assigned managed identity configurations for Azure Landing Zones automation.
 
-    Typically includes 'plan' and 'apply' identities used for Terraform/Bicep plan and apply operations
+    Typically includes 'plan' and 'apply' identities used for Terraform plan and apply operations
     with appropriate RBAC permissions.
 
     Map structure:
@@ -591,7 +591,7 @@ variable "tenant_role_assignment_enabled" {
     **(Optional, default: `false`)** Enable tenant-level role assignment for managed identities.
 
     When enabled, assigns the specified role at the tenant root scope, required for some
-    Bicep operations that need tenant-wide visibility.
+    operations that need tenant-wide visibility.
     Use cautiously as this grants broad permissions.
   EOT
   type        = bool
@@ -602,7 +602,7 @@ variable "tenant_role_assignment_role_definition_name" {
   description = <<-EOT
     **(Optional, default: `"Landing Zone Management Owner"`)** Name of the role to assign at tenant root scope.
 
-    For Bicep deployments, typically 'Landing Zone Management Owner' or a custom tenant-scoped role.
+    Typically 'Landing Zone Management Owner' or a custom tenant-scoped role.
     Must have appropriate tenant-level permissions.
   EOT
   type        = string

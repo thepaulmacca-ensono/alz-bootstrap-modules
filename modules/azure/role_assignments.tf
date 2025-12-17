@@ -56,7 +56,7 @@ resource "azurerm_role_assignment" "alz" {
   principal_id       = each.value.principal_id
 }
 
-# Bicep needs some permissions at tenant level to deploy management groups and policy in the same deployment
+# Tenant-level role assignment for operations that need tenant-wide visibility
 locals {
   tenant_role_assignments = {
     for key, value in azurerm_user_assigned_identity.alz : key => {

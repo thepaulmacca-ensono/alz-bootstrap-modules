@@ -21,6 +21,16 @@ locals {
   # Primary landing zone is the first one (used for shared resources naming)
   # With canonical ordering, this will be 'management' when present
   primary_landing_zone = local.effective_landing_zones[0]
+
+  # Per-landing-zone starter module names
+  # Uses the per-LZ override if set, otherwise falls back to the global starter_module_name
+  starter_module_names_per_landing_zone = {
+    for lz_name in local.effective_landing_zones :
+    lz_name => var.landing_zones != null ? coalesce(
+      try(var.landing_zones[lz_name].starter_module_name, null),
+      var.starter_module_name
+    ) : var.starter_module_name
+  }
 }
 
 # Region Setup
@@ -89,10 +99,6 @@ locals {
 }
 
 locals {
-  iac_terraform = "terraform"
-}
-
-locals {
   use_private_networking          = var.use_self_hosted_agents && var.use_private_networking
   allow_storage_access_from_my_ip = local.use_private_networking && var.allow_storage_access_from_my_ip
 }
@@ -110,8 +116,8 @@ locals {
   target_folder_name    = ".pipelines"
 
   agent_pool_or_runner_configuration     = var.use_self_hosted_agents ? "name: ${local.resource_names.version_control_system_agent_pool}" : "vmImage: ubuntu-latest"
-  pipeline_files_directory_path          = "${path.module}/pipelines/${var.iac_type}/main"
-  pipeline_template_files_directory_path = "${path.module}/pipelines/${var.iac_type}/templates"
+  pipeline_files_directory_path          = "${path.module}/pipelines/main"
+  pipeline_template_files_directory_path = "${path.module}/pipelines/templates"
 }
 
 locals {
@@ -276,7 +282,7 @@ locals {
   repositories = {
     for lz_name in local.effective_landing_zones : lz_name => {
       repository_name             = local.resource_names_per_landing_zone[lz_name].version_control_system_repository
-      repository_files            = module.file_manipulation.repository_files # TODO: Per-landing-zone files
+      repository_files            = module.file_manipulation[lz_name].repository_files
       environments                = local.environments_per_landing_zone[lz_name]
       pipelines                   = local.pipelines_per_landing_zone[lz_name]
       managed_identity_client_ids = local.managed_identity_client_ids_per_landing_zone[lz_name]
@@ -294,29 +300,11 @@ locals {
 }
 
 locals {
-  custom_role_definitions_bicep_names         = { for key, value in var.custom_role_definitions_bicep : "custom_role_definition_bicep_${key}" => value.name }
-  custom_role_definitions_terraform_names     = { for key, value in var.custom_role_definitions_terraform : "custom_role_definition_terraform_${key}" => value.name }
-  custom_role_definitions_bicep_classic_names = { for key, value in var.custom_role_definitions_bicep_classic : "custom_role_definition_bicep_classic_${key}" => value.name }
-
-  custom_role_definitions_bicep = {
-    for key, value in var.custom_role_definitions_bicep : key => {
-      name        = local.resource_names["custom_role_definition_bicep_${key}"]
-      description = value.description
-      permissions = value.permissions
-    }
-  }
+  custom_role_definitions_terraform_names = { for key, value in var.custom_role_definitions_terraform : "custom_role_definition_terraform_${key}" => value.name }
 
   custom_role_definitions_terraform = {
     for key, value in var.custom_role_definitions_terraform : key => {
       name        = local.resource_names["custom_role_definition_terraform_${key}"]
-      description = value.description
-      permissions = value.permissions
-    }
-  }
-
-  custom_role_definitions_bicep_classic = {
-    for key, value in var.custom_role_definitions_bicep_classic : key => {
-      name        = local.resource_names["custom_role_definition_bicep_classic_${key}"]
       description = value.description
       permissions = value.permissions
     }
@@ -336,17 +324,4 @@ locals {
       }
     }
   ]...)
-
-  role_assignments_bicep_expanded = merge([
-    for lz_name in local.effective_landing_zones : {
-      for key, value in var.role_assignments_bicep :
-      "${lz_name}-${key}" => {
-        custom_role_definition_key         = value.custom_role_definition_key
-        user_assigned_managed_identity_key = "${lz_name}-${value.user_assigned_managed_identity_key}"
-        scope                              = value.scope
-      }
-    }
-  ]...)
-
-  role_assignments_effective = var.iac_type == "terraform" ? local.role_assignments_terraform_expanded : local.role_assignments_bicep_expanded
 }

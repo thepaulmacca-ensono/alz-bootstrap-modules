@@ -25,7 +25,7 @@ variable "repository_name" {
   description = <<-EOT
     **(Optional)** Name of the GitHub repository to create for Azure Landing Zones deployment code.
 
-    This repository will contain the generated Terraform or Bicep configuration files
+    This repository will contain the generated Terraform configuration files
     and GitHub Actions workflow definitions.
 
     **DEPRECATED**: Use `repositories` instead for multi-environment support.

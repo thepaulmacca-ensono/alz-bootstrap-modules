@@ -3,46 +3,6 @@ param(
 )
 
 $combinations = [ordered]@{
-  azuredevops_bicep                        = [ordered]@{
-    versionControlSystem = @("azuredevops")
-    infrastructureAsCode = @("bicep")
-    agentType            = @("public", "private", "none")
-    operatingSystem      = @("ubuntu")
-    starterModule        = @("test")
-    regions              = @("multi")
-    terraformVersion     = @("latest")
-    deployAzureResources = @("true")
-  }
-  azuredevops_bicep_classic                = [ordered]@{
-    versionControlSystem = @("azuredevops")
-    infrastructureAsCode = @("bicep-classic")
-    agentType            = @("public", "private", "none")
-    operatingSystem      = @("ubuntu")
-    starterModule        = @("test")
-    regions              = @("multi")
-    terraformVersion     = @("latest")
-    deployAzureResources = @("true")
-  }
-  github_bicep                             = [ordered]@{
-    versionControlSystem = @("github")
-    infrastructureAsCode = @("bicep")
-    agentType            = @("public", "private", "none")
-    operatingSystem      = @("ubuntu")
-    starterModule        = @("test")
-    regions              = @("multi")
-    terraformVersion     = @("latest")
-    deployAzureResources = @("true")
-  }
-  github_bicep_classic                     = [ordered]@{
-    versionControlSystem = @("github")
-    infrastructureAsCode = @("bicep-classic")
-    agentType            = @("public", "private", "none")
-    operatingSystem      = @("ubuntu")
-    starterModule        = @("test")
-    regions              = @("multi")
-    terraformVersion     = @("latest")
-    deployAzureResources = @("true")
-  }
   azuredevops_terraform                    = [ordered]@{
     versionControlSystem = @("azuredevops")
     infrastructureAsCode = @("terraform")
@@ -99,26 +59,6 @@ $combinations = [ordered]@{
     agentType            = @("none")
     operatingSystem      = @("ubuntu")
     starterModule        = @("platform_landing_zone")
-    regions              = @("multi")
-    terraformVersion     = @("latest")
-    deployAzureResources = @("false")
-  }
-  local_starter_module_bicep_tests         = [ordered]@{
-    versionControlSystem = @("local")
-    infrastructureAsCode = @("bicep")
-    agentType            = @("none")
-    operatingSystem      = @("ubuntu")
-    starterModule        = @("platform_landing_zone")
-    regions              = @("multi")
-    terraformVersion     = @("latest")
-    deployAzureResources = @("false")
-  }
-  local_starter_module_bicep_classic_tests = [ordered]@{
-    versionControlSystem = @("local")
-    infrastructureAsCode = @("bicep-classic")
-    agentType            = @("none")
-    operatingSystem      = @("ubuntu")
-    starterModule        = @("complete")
     regions              = @("multi")
     terraformVersion     = @("latest")
     deployAzureResources = @("false")
