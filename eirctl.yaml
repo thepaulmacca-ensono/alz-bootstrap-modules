@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Ensono/eirctl/refs/heads/main/schemas/schema_v1.json
+
+import:
+  - https://raw.githubusercontent.com/thepaulmacca-ensono/eirctl-configurations/refs/heads/main/shared/contexts.yaml
+  - https://raw.githubusercontent.com/thepaulmacca-ensono/eirctl-configurations/refs/heads/main/security/linting.yaml
+  - https://raw.githubusercontent.com/thepaulmacca-ensono/eirctl-configurations/refs/heads/main/infra/terraform.yaml
+
+watchers:
+  lint:
+    watch: ["*.yml", "*.yaml"]
+    events: [create, write]
+    task: lint:yaml
+
+pipelines:
+  code:linting:
+    - task: lint:yaml
+    - task: lint:terraform:format
+      depends_on: lint:yaml
